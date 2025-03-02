@@ -1,31 +1,18 @@
-#![allow(unused_imports)]
-use std::{
-    io::{Read, Write},
-    net::TcpListener,
-};
-
-fn main() {
-    // You can use print statements as follows for debugging, they'll be visible when running tests.
-    println!("Logs from your program will appear here!");
-
-    // Uncomment this block to pass the first stage
-    //
-    let listener = TcpListener::bind("127.0.0.1:6379").unwrap();
-    //
-    for stream in listener.incoming() {
-        match stream {
-            Ok(mut stream) => {
-                let mut buff = [0; 512];
-                loop {
-                    if stream.read(&mut buff).unwrap() == 0 {
-                        break;
-                    }
-                    stream.write(b"+PONG\r\n").unwrap();
-                }
-            }
-            Err(e) => {
-                println!("error: {}", e);
-            }
-        }
+use anyhow::Result;
+use redis_starter_rust::Connection;
+use tokio::net::{TcpListener, TcpStream};
+#[tokio::main]
+async fn main() -> Result<()> {
+    let listener = TcpListener::bind("127.0.0.1:6379").await.unwrap();
+    loop {
+        let (stream, _) = listener.accept().await?;
+        tokio::spawn(async move {
+            process_socket(stream).await;
+        });
     }
+}
+
+async fn process_socket(stream: TcpStream) {
+    let mut connection = Connection::new(stream);
+    connection.read_frame().await;
 }
