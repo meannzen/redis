@@ -7,6 +7,7 @@ use tokio::{
     net::TcpStream,
 };
 
+#[derive(Debug)]
 pub struct Connection {
     stream: BufWriter<TcpStream>,
     buffer: BytesMut,
@@ -84,6 +85,14 @@ impl Connection {
                 self.stream.write_u8(b'$').await?;
                 self.write_decimal(len as u64).await?;
                 self.stream.write_all(val).await?;
+                self.stream.write_all(b"\r\n").await?;
+            }
+            Frame::Null => {
+                self.stream.write_all(b"$-1\r\n").await?;
+            }
+            Frame::Error(msg) => {
+                self.stream.write_u8(b'-').await?;
+                self.stream.write_all(msg.as_bytes()).await?;
                 self.stream.write_all(b"\r\n").await?;
             }
             Frame::Array(_) => unreachable!(),

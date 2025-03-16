@@ -7,6 +7,8 @@ pub enum Frame {
     Integer(u64),
     Bulk(Bytes),
     Array(Vec<Frame>),
+    Error(String),
+    Null,
 }
 
 #[derive(Debug)]
@@ -16,28 +18,6 @@ pub enum Error {
 }
 
 impl Frame {
-    pub(crate) fn array() -> Self {
-        Frame::Array(vec![])
-    }
-
-    pub(crate) fn push_bulk(&mut self, bytes: Bytes) {
-        match self {
-            Frame::Array(vec) => {
-                vec.push(Frame::Bulk(bytes));
-            }
-            _ => panic!("not an array frame"),
-        }
-    }
-
-    pub(crate) fn push_int(&mut self, value: u64) {
-        match self {
-            Frame::Array(vec) => {
-                vec.push(Frame::Integer(value));
-            }
-            _ => panic!("not a array frame"),
-        }
-    }
-
     pub fn parse(src: &mut Cursor<&[u8]>) -> Result<Frame, Error> {
         match get_u8(src)? {
             b'*' => {
@@ -49,11 +29,24 @@ impl Frame {
 
                 Ok(Frame::Array(out))
             }
+            b'_' => {
+             let line = get_line(src)?.to_vec();
+
+             let string = String::from_utf8(line)?;
+             Ok(Frame::Error(string))
+            }
             b':' => {
                 let len = get_decimal(src)?;
                 Ok(Frame::Integer(len))
             }
             b'$' => {
+                if b'_' == peek_u8(src)? {
+                 let line = get_line(src)?;
+                 if line != b"-1" {
+                     return Err("protocol error; invalid frame format".into())
+                 }
+                 Ok(Frame::Null)  
+                } else {
                 let len = get_decimal(src)?.try_into()?;
                 let n = len + 2;
 
@@ -66,6 +59,7 @@ impl Frame {
                 skip(src, n)?;
 
                 Ok(Frame::Bulk(data))
+                }
             }
             _ => unimplemented!(),
         }
@@ -77,10 +71,18 @@ impl Frame {
                 let _ = get_decimal(src)?;
                 Ok(())
             }
+            b'-' => {
+                get_line(src)?;
+                Ok(())
+            }
 
             b'$' => {
-                let len: usize = get_decimal(src)?.try_into()?;
-                skip(src, len + 2)
+                if b'-' == peek_u8(src)? {
+                    skip(src, 4)
+                } else {
+                    let len: usize = get_decimal(src)?.try_into()?;
+                    skip(src, len + 2)
+                }
             }
             b'*' => {
                 let len = get_decimal(src)?;
@@ -94,6 +96,13 @@ impl Frame {
             value => Err(format!("protocol error; invalid frame type byte `{}`", value).into()),
         }
     }
+}
+
+    pub fn peek_u8(src: &mut Cursor<&[u8]>)->Result<u8, Error> {
+    if !src.has_remaining() {
+        return Err(Error::Incomplete)
+    }
+    Ok(src.chunk()[0])
 }
 
 fn skip(src: &mut Cursor<&[u8]>, n: usize) -> Result<(), Error> {
@@ -141,7 +150,7 @@ impl std::fmt::Display for Frame {
                 Ok(string) => string.fmt(f),
                 Err(_) => write!(f, "{:?}", s),
             },
-
+            Frame::Null=> "(nil)".fmt(f),
             Frame::Array(parts) => {
                 for (i, part) in parts.iter().enumerate() {
                     if i > 0 {
@@ -151,6 +160,7 @@ impl std::fmt::Display for Frame {
                 }
                 Ok(())
             }
+            Frame::Error(msg) => write!(f, "error: {}", msg),
         }
     }
 }
