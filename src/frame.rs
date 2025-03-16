@@ -30,10 +30,10 @@ impl Frame {
                 Ok(Frame::Array(out))
             }
             b'_' => {
-             let line = get_line(src)?.to_vec();
+                let line = get_line(src)?.to_vec();
 
-             let string = String::from_utf8(line)?;
-             Ok(Frame::Error(string))
+                let string = String::from_utf8(line)?;
+                Ok(Frame::Error(string))
             }
             b':' => {
                 let len = get_decimal(src)?;
@@ -41,24 +41,24 @@ impl Frame {
             }
             b'$' => {
                 if b'_' == peek_u8(src)? {
-                 let line = get_line(src)?;
-                 if line != b"-1" {
-                     return Err("protocol error; invalid frame format".into())
-                 }
-                 Ok(Frame::Null)  
+                    let line = get_line(src)?;
+                    if line != b"-1" {
+                        return Err("protocol error; invalid frame format".into());
+                    }
+                    Ok(Frame::Null)
                 } else {
-                let len = get_decimal(src)?.try_into()?;
-                let n = len + 2;
+                    let len = get_decimal(src)?.try_into()?;
+                    let n = len + 2;
 
-                if src.remaining() < n {
-                    return Err(Error::Incomplete);
-                }
+                    if src.remaining() < n {
+                        return Err(Error::Incomplete);
+                    }
 
-                let data = Bytes::copy_from_slice(&src.chunk()[..len]);
+                    let data = Bytes::copy_from_slice(&src.chunk()[..len]);
 
-                skip(src, n)?;
+                    skip(src, n)?;
 
-                Ok(Frame::Bulk(data))
+                    Ok(Frame::Bulk(data))
                 }
             }
             _ => unimplemented!(),
@@ -98,9 +98,9 @@ impl Frame {
     }
 }
 
-    pub fn peek_u8(src: &mut Cursor<&[u8]>)->Result<u8, Error> {
+pub fn peek_u8(src: &mut Cursor<&[u8]>) -> Result<u8, Error> {
     if !src.has_remaining() {
-        return Err(Error::Incomplete)
+        return Err(Error::Incomplete);
     }
     Ok(src.chunk()[0])
 }
@@ -150,7 +150,7 @@ impl std::fmt::Display for Frame {
                 Ok(string) => string.fmt(f),
                 Err(_) => write!(f, "{:?}", s),
             },
-            Frame::Null=> "(nil)".fmt(f),
+            Frame::Null => "(nil)".fmt(f),
             Frame::Array(parts) => {
                 for (i, part) in parts.iter().enumerate() {
                     if i > 0 {

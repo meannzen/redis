@@ -25,7 +25,7 @@ impl Get {
         let response = if let Some(value) = db.get(&self.key) {
             Frame::Bulk(value)
         } else {
-            Frame::Null            
+            Frame::Null
         };
         dst.write_frame(&response).await?;
         Ok(())

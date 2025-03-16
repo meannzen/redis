@@ -11,9 +11,9 @@ pub mod ping;
 pub mod set;
 pub mod unknown;
 pub use echo::Echo;
-pub use unknown::Unknown;
 pub use get::Get;
 pub use set::Set;
+pub use unknown::Unknown;
 
 #[derive(Debug)]
 pub enum Command {
@@ -52,7 +52,7 @@ impl Command {
         match self {
             Ping(cmd) => cmd.apply(dst).await,
             Echo(cmd) => cmd.apply(dst).await,
-            Get(cmd)=> cmd.apply(db, dst).await,
+            Get(cmd) => cmd.apply(db, dst).await,
             Set(cmd) => cmd.apply(db, dst).await,
             Unknown(cmd) => cmd.apply(dst).await,
         }

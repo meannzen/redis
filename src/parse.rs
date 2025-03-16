@@ -41,11 +41,10 @@ impl Parse {
                 .map(|s| s.to_string())
                 .map_err(|_| "protocol error; invalid string".into()),
             frame => Err(format!(
-                    "protocol error ; expected simple string or bulk but got: {:?}",
-                    frame
-                )
-                .into())
-            
+                "protocol error ; expected simple string or bulk but got: {:?}",
+                frame
+            )
+            .into()),
         }
     }
 
@@ -56,8 +55,7 @@ impl Parse {
             Frame::Integer(v) => Ok(v),
             Frame::Simple(s) => atoi::<u64>(s.as_bytes()).ok_or_else(|| MESSAGE.into()),
             Frame::Bulk(b) => atoi::<u64>(&b).ok_or_else(|| MESSAGE.into()),
-            frame => Err(format!("protocol error ; expected int but got: {:?}", frame).into())
-            
+            frame => Err(format!("protocol error ; expected int but got: {:?}", frame).into()),
         }
     }
 
