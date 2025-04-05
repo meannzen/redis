@@ -7,6 +7,7 @@ use tokio::{
 const MAX_CONNECTIONS: usize = 250;
 
 use crate::{
+    config::Config,
     store::{Db, Store},
     Command, Connection,
 };
@@ -14,6 +15,7 @@ use crate::{
 struct Listener {
     listener: TcpListener,
     store: Store,
+    config: Arc<Config>,
     limit_connection: Arc<Semaphore>,
     notify_shutdown: broadcast::Sender<()>,
     shutdown_complete_tx: mpsc::Sender<()>,
@@ -27,6 +29,7 @@ impl Listener {
 
             let mut handler = Handler {
                 db: self.store.db.clone(),
+                config: self.config.clone(),
                 connection: Connection::new(socket),
                 shutdown: Shutdown::new(self.notify_shutdown.subscribe()),
                 _shutdow_complete: self.shutdown_complete_tx.clone(),
@@ -58,7 +61,7 @@ impl Listener {
     }
 }
 
-pub async fn run(listener: TcpListener, shutdown: impl Future) {
+pub async fn run(listener: TcpListener, config: Config, shutdown: impl Future) {
     let (notify_shutdown, _) = broadcast::channel(1);
     let (shutdown_complete_tx, mut shutdown_complete_rx) = mpsc::channel(1);
 
@@ -68,6 +71,7 @@ pub async fn run(listener: TcpListener, shutdown: impl Future) {
         limit_connection: Arc::new(Semaphore::new(MAX_CONNECTIONS)),
         notify_shutdown,
         shutdown_complete_tx,
+        config: Arc::new(config),
     };
 
     tokio::select! {
@@ -95,6 +99,7 @@ pub async fn run(listener: TcpListener, shutdown: impl Future) {
 #[derive(Debug)]
 struct Handler {
     db: Db,
+    config: Arc<Config>,
     connection: Connection,
     shutdown: Shutdown,
     _shutdow_complete: mpsc::Sender<()>,
@@ -117,7 +122,12 @@ impl Handler {
 
             let command = Command::from_frame(frame)?;
             command
-                .apply(&self.db, &mut self.connection, &mut self.shutdown)
+                .apply(
+                    &self.db,
+                    &self.config,
+                    &mut self.connection,
+                    &mut self.shutdown,
+                )
                 .await?;
         }
         Ok(())

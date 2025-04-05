@@ -5,11 +5,13 @@ use crate::server::Shutdown;
 use crate::store::Db;
 use crate::{Connection, Frame};
 
+pub mod config;
 pub mod echo;
 pub mod get;
 pub mod ping;
 pub mod set;
 pub mod unknown;
+pub use config::Config;
 pub use echo::Echo;
 pub use get::Get;
 pub use set::Set;
@@ -21,6 +23,7 @@ pub enum Command {
     Echo(Echo),
     Get(Get),
     Set(Set),
+    Config(Config),
     Unknown(Unknown),
 }
 
@@ -34,6 +37,15 @@ impl Command {
             "echo" => Command::Echo(Echo::parse_frame(&mut parse)?),
             "get" => Command::Get(Get::parse_frame(&mut parse)?),
             "set" => Command::Set(Set::parse_frame(&mut parse)?),
+            "config" => {
+                let sub_command_string = parse.next_string()?.to_lowercase();
+                match &sub_command_string[..] {
+                    "get" => Command::Config(Config::parse_frame(&mut parse)?),
+                    _ => {
+                        return Ok(Command::Unknown(Unknown::new(sub_command_string)));
+                    }
+                }
+            }
             _ => {
                 return Ok(Command::Unknown(Unknown::new(command_string)));
             }
@@ -45,6 +57,7 @@ impl Command {
     pub async fn apply(
         self,
         db: &Db,
+        config: &crate::config::Config,
         dst: &mut Connection,
         _shutdown: &mut Shutdown,
     ) -> crate::Result<()> {
@@ -54,6 +67,7 @@ impl Command {
             Echo(cmd) => cmd.apply(dst).await,
             Get(cmd) => cmd.apply(db, dst).await,
             Set(cmd) => cmd.apply(db, dst).await,
+            Config(cmd) => cmd.apply(config, dst).await,
             Unknown(cmd) => cmd.apply(dst).await,
         }
     }
