@@ -113,7 +113,7 @@ impl Db {
         }
     }
 
-    fn shutdown_purk_task(&self) {
+    fn shutdown_purge_task(&self) {
         let mut state = self.shared.state.lock().unwrap();
         state.shutdown = true;
 
@@ -124,7 +124,7 @@ impl Db {
 
 impl Drop for Store {
     fn drop(&mut self) {
-        self.db.shutdown_purk_task();
+        self.db.shutdown_purge_task();
     }
 }
 impl Default for Db {

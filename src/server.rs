@@ -32,7 +32,7 @@ impl Listener {
                 config: self.config.clone(),
                 connection: Connection::new(socket),
                 shutdown: Shutdown::new(self.notify_shutdown.subscribe()),
-                _shutdow_complete: self.shutdown_complete_tx.clone(),
+                _shutdown_complete: self.shutdown_complete_tx.clone(),
             };
 
             tokio::spawn(async move {
@@ -102,7 +102,7 @@ struct Handler {
     config: Arc<Config>,
     connection: Connection,
     shutdown: Shutdown,
-    _shutdow_complete: mpsc::Sender<()>,
+    _shutdown_complete: mpsc::Sender<()>,
 }
 
 impl Handler {

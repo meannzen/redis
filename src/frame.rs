@@ -31,6 +31,8 @@ impl Frame {
         }
     }
 
+    pub fn push_int(&self, _value: u8) {}
+
     pub fn parse(src: &mut Cursor<&[u8]>) -> Result<Frame, Error> {
         match get_u8(src)? {
             b'*' => {
@@ -283,7 +285,7 @@ mod tests {
 
     #[test]
     fn test_push_int() {
-        let mut frame = Frame::array();
+        let frame = Frame::array();
         frame.push_int(42);
         if let Frame::Array(vec) = frame {
             assert_eq!(vec.len(), 1);
