@@ -65,6 +65,8 @@ pub async fn run(listener: TcpListener, config: Config, shutdown: impl Future) {
     let (notify_shutdown, _) = broadcast::channel(1);
     let (shutdown_complete_tx, mut shutdown_complete_rx) = mpsc::channel(1);
 
+    println!("config {:?}", config);
+
     let server = Listener {
         listener,
         store: Store::new(),
