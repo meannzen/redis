@@ -61,7 +61,7 @@ impl Command {
     pub async fn apply(
         self,
         db: &Db,
-        config: &crate::config::Cli,
+        config: &crate::server_cli::Cli,
         dst: &mut Connection,
         _shutdown: &mut Shutdown,
     ) -> crate::Result<()> {

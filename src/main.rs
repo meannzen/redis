@@ -1,6 +1,6 @@
 use anyhow::{Ok, Result};
 use clap::Parser;
-use redis_starter_rust::{config::Cli, server};
+use redis_starter_rust::{server_cli::Cli, server};
 use tokio::net::TcpListener;
 
 #[tokio::main]

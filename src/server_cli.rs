@@ -10,7 +10,6 @@ use crate::DEFAULT_PORT;
     author,
     about = "A redis config serverr"
 )]
-
 pub struct Cli {
     #[arg(long)]
     port: Option<u16>,

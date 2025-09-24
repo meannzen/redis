@@ -25,7 +25,7 @@ impl Config {
 
     pub async fn apply(
         self,
-        config: &crate::config::Cli,
+        config: &crate::server_cli::Cli,
         dst: &mut Connection,
     ) -> crate::Result<()> {
         let mut frame: Frame = Frame::array();

@@ -73,12 +73,12 @@ impl RdbParse {
             match opcode {
                 0xFA => {
                     position += 1;
-                    if let Ok((_, _, consumed)) = Self::decode_string(&buffer, position) {
+                    if let Ok((_, _, consumed)) = Self::decode_string(buffer, position) {
                         position += consumed;
                     } else {
                         break;
                     }
-                    if let Ok((_, _, consumed)) = Self::decode_string(&buffer, position) {
+                    if let Ok((_, _, consumed)) = Self::decode_string(buffer, position) {
                         position += consumed;
                     } else {
                         break;
@@ -86,7 +86,7 @@ impl RdbParse {
                 }
                 0xFE => {
                     position += 1;
-                    if let Ok((_, consumed)) = Self::get_length(&buffer, position) {
+                    if let Ok((_, consumed)) = Self::get_length(buffer, position) {
                         position += consumed;
                     } else {
                         break;
@@ -94,12 +94,12 @@ impl RdbParse {
                 }
                 0xFB => {
                     position += 1;
-                    if let Ok((_, consumed)) = Self::get_length(&buffer, position) {
+                    if let Ok((_, consumed)) = Self::get_length(buffer, position) {
                         position += consumed;
                     } else {
                         break;
                     }
-                    if let Ok((_, consumed)) = Self::get_length(&buffer, position) {
+                    if let Ok((_, consumed)) = Self::get_length(buffer, position) {
                         position += consumed;
                     } else {
                         break;
@@ -130,10 +130,10 @@ impl RdbParse {
                 }
                 0x00 => {
                     position += 1;
-                    match Self::decode_string(&buffer, position) {
+                    match Self::decode_string(buffer, position) {
                         Ok((key, _, consumed)) => {
                             position += consumed;
-                            match Self::decode_string(&buffer, position) {
+                            match Self::decode_string(buffer, position) {
                                 Ok((_, value_bytes, consumed)) => {
                                     position += consumed;
                                     database.set(key, value_bytes, current_expiry.take());
@@ -194,7 +194,7 @@ impl RdbParse {
 
         if byte >> 6 == 0b11 {
             match byte {
-                0xC0 | 0xC1 | 0xC2 => {
+                0xC0..=0xC2 => {
                     let (len, bytes_read) = match byte {
                         0xC0 => (1, 1),
                         0xC1 => (2, 2),
@@ -284,7 +284,7 @@ impl RdbParse {
                     ));
                 }
                 let value =
-                    u16::from_be_bytes([byte & 0x3F, bytes[position + 1]].try_into().unwrap())
+                    u16::from_be_bytes([byte & 0x3F, bytes[position + 1]])
                         as usize;
                 Ok((value, 2))
             }
@@ -301,7 +301,7 @@ impl RdbParse {
                 Ok((value, 5))
             }
             0b11 => match byte {
-                0xC0 | 0xC1 | 0xC2 => Err(std::io::Error::new(
+                0xC0..=0xC2 => Err(std::io::Error::new(
                     std::io::ErrorKind::InvalidData,
                     "Integer encoding should be handled in decode_string",
                 )),

@@ -1,5 +1,5 @@
 pub mod command;
-pub mod config;
+pub mod server_cli;
 pub mod connection;
 pub mod database;
 pub mod frame;
