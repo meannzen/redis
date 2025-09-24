@@ -25,7 +25,7 @@ impl Config {
 
     pub async fn apply(
         self,
-        config: &crate::config::Config,
+        config: &crate::config::Cli,
         dst: &mut Connection,
     ) -> crate::Result<()> {
         let mut frame: Frame = Frame::array();
@@ -36,7 +36,7 @@ impl Config {
             }
         }
         if self.cmd == "dbfilename" {
-            if let Some(dir) = config.db_file_name.clone() {
+            if let Some(dir) = config.dbfilename.clone() {
                 frame.push_bulk(Bytes::from("dbfilename"));
                 frame.push_bulk(Bytes::from(dir));
             }

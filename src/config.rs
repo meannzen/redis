@@ -1,14 +1,28 @@
+use clap::Parser;
 use std::env;
 
-#[derive(Debug)]
-pub struct Config {
+use crate::DEFAULT_PORT;
+
+#[derive(Parser, Debug)]
+#[command(
+    name = "rdis-server",
+    version,
+    author,
+    about = "A redis config serverr"
+)]
+
+pub struct Cli {
+    #[arg(long)]
+    port: Option<u16>,
+    #[arg(long)]
     pub dir: Option<String>,
-    pub db_file_name: Option<String>,
+    #[arg(long)]
+    pub dbfilename: Option<String>,
 }
 
-impl Config {
+impl Cli {
     pub fn file_path(&self) -> Option<String> {
-        let file_name = match &self.db_file_name {
+        let file_name = match &self.dbfilename {
             Some(f) => f.as_str(),
             None => return None,
         };
@@ -23,21 +37,8 @@ impl Config {
 
         Some(format!("{}/{}", dir_path.trim_end_matches('/'), file_name))
     }
-}
 
-impl From<std::env::Args> for Config {
-    fn from(mut value: std::env::Args) -> Self {
-        let mut dir: Option<String> = None;
-        let mut db_file_name: Option<String> = None;
-        while let Some(v) = value.next() {
-            if v == "--dir" {
-                dir = value.next();
-            }
-            if v == "--dbfilename" {
-                db_file_name = value.next();
-            }
-        }
-
-        Self { dir, db_file_name }
+    pub fn port(&self) -> u16 {
+        self.port.unwrap_or(DEFAULT_PORT)
     }
 }

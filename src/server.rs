@@ -7,7 +7,7 @@ use tokio::{
 const MAX_CONNECTIONS: usize = 250;
 
 use crate::{
-    config::Config,
+    config::Cli,
     database::parser::RdbParse,
     store::{Db, Store},
     Command, Connection,
@@ -16,7 +16,7 @@ use crate::{
 struct Listener {
     listener: TcpListener,
     store: Store,
-    config: Arc<Config>,
+    config: Arc<Cli>,
     limit_connection: Arc<Semaphore>,
     notify_shutdown: broadcast::Sender<()>,
     shutdown_complete_tx: mpsc::Sender<()>,
@@ -62,7 +62,7 @@ impl Listener {
     }
 }
 
-pub async fn run(listener: TcpListener, config: Config, shutdown: impl Future) {
+pub async fn run(listener: TcpListener, config: Cli, shutdown: impl Future) {
     let (notify_shutdown, _) = broadcast::channel(1);
     let (shutdown_complete_tx, mut shutdown_complete_rx) = mpsc::channel(1);
     let store = Store::new();
@@ -110,7 +110,7 @@ pub async fn run(listener: TcpListener, config: Config, shutdown: impl Future) {
 #[derive(Debug)]
 struct Handler {
     db: Db,
-    config: Arc<Config>,
+    config: Arc<Cli>,
     connection: Connection,
     shutdown: Shutdown,
     _shutdown_complete: mpsc::Sender<()>,
