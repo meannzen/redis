@@ -8,12 +8,14 @@ use crate::{Connection, Frame};
 pub mod config;
 pub mod echo;
 pub mod get;
+pub mod key;
 pub mod ping;
 pub mod set;
 pub mod unknown;
 pub use config::Config;
 pub use echo::Echo;
 pub use get::Get;
+pub use key::Keys;
 pub use set::Set;
 pub use unknown::Unknown;
 
@@ -24,6 +26,7 @@ pub enum Command {
     Get(Get),
     Set(Set),
     Config(Config),
+    Keys(Keys),
     Unknown(Unknown),
 }
 
@@ -37,6 +40,7 @@ impl Command {
             "echo" => Command::Echo(Echo::parse_frame(&mut parse)?),
             "get" => Command::Get(Get::parse_frame(&mut parse)?),
             "set" => Command::Set(Set::parse_frame(&mut parse)?),
+            "keys" => Command::Keys(Keys::parse_frame(&mut parse)?),
             "config" => {
                 let sub_command_string = parse.next_string()?.to_lowercase();
                 match &sub_command_string[..] {
@@ -68,6 +72,7 @@ impl Command {
             Get(cmd) => cmd.apply(db, dst).await,
             Set(cmd) => cmd.apply(db, dst).await,
             Config(cmd) => cmd.apply(config, dst).await,
+            Keys(cmd) => cmd.apply(db, dst).await,
             Unknown(cmd) => cmd.apply(dst).await,
         }
     }

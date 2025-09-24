@@ -1,6 +1,7 @@
 pub mod command;
 pub mod config;
 pub mod connection;
+pub mod database;
 pub mod frame;
 pub mod parse;
 pub mod server;

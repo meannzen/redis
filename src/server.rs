@@ -1,4 +1,4 @@
-use std::{future::Future, sync::Arc};
+use std::{future::Future, path::Path, sync::Arc};
 
 use tokio::{
     net::{TcpListener, TcpStream},
@@ -8,6 +8,7 @@ const MAX_CONNECTIONS: usize = 250;
 
 use crate::{
     config::Config,
+    database::parser::RdbParse,
     store::{Db, Store},
     Command, Connection,
 };
@@ -64,12 +65,20 @@ impl Listener {
 pub async fn run(listener: TcpListener, config: Config, shutdown: impl Future) {
     let (notify_shutdown, _) = broadcast::channel(1);
     let (shutdown_complete_tx, mut shutdown_complete_rx) = mpsc::channel(1);
-
-    println!("config {:?}", config);
+    let store = Store::new();
+    if let Some(file) = config.file_path() {
+        let path = Path::new(&file);
+        if path.exists() {
+            let database = RdbParse::parse(&file).unwrap();
+            for (key, value) in database.entries {
+                store.db.set(key, value.data, value.expire);
+            }
+        }
+    }
 
     let server = Listener {
         listener,
-        store: Store::new(),
+        store,
         limit_connection: Arc::new(Semaphore::new(MAX_CONNECTIONS)),
         notify_shutdown,
         shutdown_complete_tx,

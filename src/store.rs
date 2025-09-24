@@ -79,6 +79,30 @@ impl Db {
         state.entries.get(key).map(|entry| entry.data.clone())
     }
 
+    pub fn get_keys(&self, key: &str) -> Vec<Bytes> {
+        let state = self.shared.state.lock().unwrap();
+        let mut result_keys: Vec<Bytes> = Vec::new();
+
+        if key == "*" {
+            result_keys = state.entries.keys().cloned().map(|x| x.into()).collect();
+        } else if key.ends_with('*') {
+            let prefix = &key[0..key.len() - 1];
+            for (k, _) in state.entries.iter() {
+                if k.starts_with(prefix) {
+                    result_keys.push(k.clone().into());
+                }
+            }
+        } else if let Some(suffix) = key.strip_suffix('*') {
+            for (k, _) in state.entries.iter() {
+                if k.ends_with(suffix) {
+                    result_keys.push(k.clone().into());
+                }
+            }
+        }
+
+        result_keys
+    }
+
     pub fn set(&self, key: String, value: Bytes, expire: Option<Duration>) {
         let mut state = self.shared.state.lock().unwrap();
         let mut notify = false;

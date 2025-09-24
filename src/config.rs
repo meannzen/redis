@@ -1,7 +1,28 @@
+use std::env;
+
 #[derive(Debug)]
 pub struct Config {
     pub dir: Option<String>,
     pub db_file_name: Option<String>,
+}
+
+impl Config {
+    pub fn file_path(&self) -> Option<String> {
+        let file_name = match &self.db_file_name {
+            Some(f) => f.as_str(),
+            None => return None,
+        };
+
+        let dir_path = match &self.dir {
+            Some(dir) => dir.clone(),
+            None => env::current_dir()
+                .ok()
+                .map(|p| p.to_string_lossy().to_string())
+                .unwrap_or_else(|| ".".to_string()),
+        };
+
+        Some(format!("{}/{}", dir_path.trim_end_matches('/'), file_name))
+    }
 }
 
 impl From<std::env::Args> for Config {
