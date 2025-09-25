@@ -7,8 +7,8 @@ use tokio::{
 const MAX_CONNECTIONS: usize = 250;
 
 use crate::{
-    server_cli::Cli,
     database::parser::RdbParse,
+    server_cli::Cli,
     store::{Db, Store},
     Command, Connection,
 };

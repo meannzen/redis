@@ -1,10 +1,10 @@
 pub mod command;
-pub mod server_cli;
 pub mod connection;
 pub mod database;
 pub mod frame;
 pub mod parse;
 pub mod server;
+pub mod server_cli;
 pub mod store;
 pub use command::Command;
 pub use connection::Connection;

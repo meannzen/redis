@@ -283,9 +283,7 @@ impl RdbParse {
                         "Not enough bytes for 14-bit length",
                     ));
                 }
-                let value =
-                    u16::from_be_bytes([byte & 0x3F, bytes[position + 1]])
-                        as usize;
+                let value = u16::from_be_bytes([byte & 0x3F, bytes[position + 1]]) as usize;
                 Ok((value, 2))
             }
             0b10 => {

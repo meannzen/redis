@@ -26,7 +26,7 @@ impl Config {
     pub async fn apply(
         self,
         config: &crate::server_cli::Cli,
-        dst: &mut Connection,
+        conn: &mut Connection,
     ) -> crate::Result<()> {
         let mut frame: Frame = Frame::array();
         if self.cmd == "dir" {
@@ -41,7 +41,7 @@ impl Config {
                 frame.push_bulk(Bytes::from(dir));
             }
         }
-        dst.write_frame(&frame).await?;
+        conn.write_frame(&frame).await?;
         Ok(())
     }
 }

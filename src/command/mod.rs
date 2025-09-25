@@ -8,6 +8,7 @@ use crate::{Connection, Frame};
 pub mod config;
 pub mod echo;
 pub mod get;
+pub mod info;
 pub mod key;
 pub mod ping;
 pub mod set;
@@ -15,6 +16,7 @@ pub mod unknown;
 pub use config::Config;
 pub use echo::Echo;
 pub use get::Get;
+pub use info::Info;
 pub use key::Keys;
 pub use set::Set;
 pub use unknown::Unknown;
@@ -27,6 +29,7 @@ pub enum Command {
     Set(Set),
     Config(Config),
     Keys(Keys),
+    Info(Info),
     Unknown(Unknown),
 }
 
@@ -41,6 +44,7 @@ impl Command {
             "get" => Command::Get(Get::parse_frame(&mut parse)?),
             "set" => Command::Set(Set::parse_frame(&mut parse)?),
             "keys" => Command::Keys(Keys::parse_frame(&mut parse)?),
+            "info" => Command::Info(Info::parse_frame(&mut parse)?),
             "config" => {
                 let sub_command_string = parse.next_string()?.to_lowercase();
                 match &sub_command_string[..] {
@@ -62,18 +66,19 @@ impl Command {
         self,
         db: &Db,
         config: &crate::server_cli::Cli,
-        dst: &mut Connection,
+        conn: &mut Connection,
         _shutdown: &mut Shutdown,
     ) -> crate::Result<()> {
         use Command::*;
         match self {
-            Ping(cmd) => cmd.apply(dst).await,
-            Echo(cmd) => cmd.apply(dst).await,
-            Get(cmd) => cmd.apply(db, dst).await,
-            Set(cmd) => cmd.apply(db, dst).await,
-            Config(cmd) => cmd.apply(config, dst).await,
-            Keys(cmd) => cmd.apply(db, dst).await,
-            Unknown(cmd) => cmd.apply(dst).await,
+            Ping(cmd) => cmd.apply(conn).await,
+            Echo(cmd) => cmd.apply(conn).await,
+            Get(cmd) => cmd.apply(db, conn).await,
+            Set(cmd) => cmd.apply(db, conn).await,
+            Config(cmd) => cmd.apply(config, conn).await,
+            Keys(cmd) => cmd.apply(db, conn).await,
+            Info(cmd) => cmd.apply(conn).await,
+            Unknown(cmd) => cmd.apply(conn).await,
         }
     }
 }
