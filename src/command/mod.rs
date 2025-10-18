@@ -77,7 +77,7 @@ impl Command {
             Set(cmd) => cmd.apply(db, conn).await,
             Config(cmd) => cmd.apply(config, conn).await,
             Keys(cmd) => cmd.apply(db, conn).await,
-            Info(cmd) => cmd.apply(conn).await,
+            Info(cmd) => cmd.apply(config, conn).await,
             Unknown(cmd) => cmd.apply(conn).await,
         }
     }

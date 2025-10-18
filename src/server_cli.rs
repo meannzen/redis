@@ -14,6 +14,8 @@ pub struct Cli {
     #[arg(long)]
     port: Option<u16>,
     #[arg(long)]
+    pub replicaof: Option<String>,
+    #[arg(long)]
     pub dir: Option<String>,
     #[arg(long)]
     pub dbfilename: Option<String>,

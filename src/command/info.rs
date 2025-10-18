@@ -1,4 +1,4 @@
-use crate::{parse::Parse, Connection, Frame};
+use crate::{parse::Parse, server_cli::Cli, Connection, Frame};
 #[derive(Debug)]
 pub struct Info {
     argument: String,
@@ -15,10 +15,14 @@ impl Info {
         Ok(Info { argument })
     }
 
-    pub async fn apply(self, con: &mut Connection) -> crate::Result<()> {
+    pub async fn apply(self, config: &Cli, con: &mut Connection) -> crate::Result<()> {
         let mut frame = Frame::Null;
         if &self.argument.to_lowercase() == "replication" {
-            frame = Frame::Simple("role:master".to_string());
+            if config.replicaof.is_some() {
+                frame = Frame::Simple("role:slave".to_string());
+            } else {
+                frame = Frame::Simple("role:master".to_string());
+            }
         }
         con.write_frame(&frame).await?;
         Ok(())
