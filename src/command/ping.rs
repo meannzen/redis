@@ -30,4 +30,14 @@ impl Ping {
         dst.write_frame(&response).await?;
         Ok(())
     }
+
+    pub fn into_frame(self) -> Frame {
+        let mut frame = Frame::array();
+        frame.push_bulk(Bytes::from("ping".as_bytes()));
+        if let Some(msg) = self.msg {
+            frame.push_bulk(msg);
+        }
+
+        frame
+    }
 }

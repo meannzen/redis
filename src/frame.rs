@@ -111,6 +111,10 @@ impl Frame {
             value => Err(format!("protocol error; invalid frame type byte `{}`", value).into()),
         }
     }
+
+    pub fn to_error(&self) -> crate::Error {
+        format!("unexpected frame: {}", self).into()
+    }
 }
 
 pub fn peek_u8(src: &mut Cursor<&[u8]>) -> Result<u8, Error> {

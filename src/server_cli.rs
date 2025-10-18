@@ -2,8 +2,12 @@ use clap::Parser;
 use std::env;
 
 use crate::DEFAULT_PORT;
-
-#[derive(Parser, Debug)]
+#[derive(Debug, Clone)]
+pub struct ReplicaOf {
+    pub host: String,
+    pub port: u16,
+}
+#[derive(Parser, Debug, Clone)]
 #[command(
     name = "rdis-server",
     version,
@@ -13,8 +17,8 @@ use crate::DEFAULT_PORT;
 pub struct Cli {
     #[arg(long)]
     port: Option<u16>,
-    #[arg(long)]
-    pub replicaof: Option<String>,
+    #[arg(long, value_parser = clap::value_parser!(ReplicaOf))]
+    pub replicaof: Option<ReplicaOf>,
     #[arg(long)]
     pub dir: Option<String>,
     #[arg(long)]
@@ -41,5 +45,24 @@ impl Cli {
 
     pub fn port(&self) -> u16 {
         self.port.unwrap_or(DEFAULT_PORT)
+    }
+}
+
+impl std::str::FromStr for ReplicaOf {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let parts: Vec<&str> = s.trim().split_whitespace().collect();
+        if parts.len() != 2 {
+            return Err(format!(
+                "Invalid --replicaof format: expected 'HOST PORT', got '{}'",
+                s
+            ));
+        }
+        let host = parts[0].to_string();
+        let port: u16 = parts[1]
+            .parse()
+            .map_err(|e| format!("Invalid port '{}': {}", parts[1], e))?;
+        Ok(ReplicaOf { host, port })
     }
 }
