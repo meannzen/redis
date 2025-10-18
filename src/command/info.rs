@@ -21,7 +21,10 @@ impl Info {
             if config.replicaof.is_some() {
                 frame = Frame::Simple("role:slave".to_string());
             } else {
-                frame = Frame::Simple("role:master".to_string());
+                frame = Frame::Simple(
+                    "role:master master_replid:8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb master_repl_offset:0"
+                        .to_string(),
+                )
             }
         }
         con.write_frame(&frame).await?;
