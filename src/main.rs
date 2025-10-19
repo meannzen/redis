@@ -1,13 +1,11 @@
 use clap::Parser;
 use redis_starter_rust::{
+    clients::Client,
     server,
     server_cli::{Cli, ReplicaOf},
     Result,
 };
-use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
-    net::{TcpListener, TcpStream},
-};
+use tokio::net::TcpListener;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -26,29 +24,14 @@ async fn main() -> Result<()> {
         port: master_port,
     }) = cli.replicaof
     {
-        match TcpStream::connect(format!("{}:{}", host, master_port)).await {
-            Ok(mut stream) => {
-                let ping_resp = b"*1\r\n$4\r\nPING\r\n";
-                if let Err(e) = stream.write_all(ping_resp).await {
-                    eprintln!("Failed to send PING: {}", e);
-                } else {
-                    println!("PING sent to master!");
-                }
-                let mut buffer = [0; 1024];
-                if let Ok(n) = stream.read(&mut buffer).await {
-                    if n > 0 {
-                        let response = String::from_utf8_lossy(&buffer[..n]);
-                        println!("Response from master: {}", response.trim_end());
-                    }
-                }
-            }
-            Err(e) => {
-                eprintln!(
-                    "Failed to connect to master {}:{}: {}",
-                    host, master_port, e
-                );
-            }
+        let mut client = Client::connect(format!("{}:{}", host, master_port)).await?;
+        let value = client.ping(None).await.unwrap();
+        if let Ok(string) = std::str::from_utf8(&value) {
+            println!("\"{}\"", string);
+        } else {
+            println!("{:?}", value);
         }
+        drop(client);
     }
 
     server_handle.await?;
