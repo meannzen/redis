@@ -3,7 +3,10 @@ use std::io::{Error, ErrorKind};
 use bytes::Bytes;
 use tokio::net::{TcpStream, ToSocketAddrs};
 
-use crate::{command::ping::Ping, Connection, Frame};
+use crate::{
+    command::{ping::Ping, ReplConf},
+    Connection, Frame,
+};
 
 pub struct Client {
     connection: Connection,
@@ -20,6 +23,16 @@ impl Client {
 
     pub async fn ping(&mut self, msg: Option<Bytes>) -> crate::Result<Bytes> {
         let frame = Ping::new(msg).into_frame();
+        self.connection.write_frame(&frame).await?;
+        match self.read_response().await? {
+            Frame::Simple(value) => Ok(value.into()),
+            Frame::Bulk(value) => Ok(value.into()),
+            frame => Err(frame.to_error()),
+        }
+    }
+
+    pub async fn replconf(&mut self, msg: Bytes, option: Bytes) -> crate::Result<Bytes> {
+        let frame = ReplConf::new(msg, option).into_frame();
         self.connection.write_frame(&frame).await?;
         match self.read_response().await? {
             Frame::Simple(value) => Ok(value.into()),

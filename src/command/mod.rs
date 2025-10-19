@@ -11,6 +11,7 @@ pub mod get;
 pub mod info;
 pub mod key;
 pub mod ping;
+pub mod replconf;
 pub mod set;
 pub mod unknown;
 pub use config::Config;
@@ -18,6 +19,7 @@ pub use echo::Echo;
 pub use get::Get;
 pub use info::Info;
 pub use key::Keys;
+pub use replconf::ReplConf;
 pub use set::Set;
 pub use unknown::Unknown;
 
@@ -30,6 +32,7 @@ pub enum Command {
     Config(Config),
     Keys(Keys),
     Info(Info),
+    ReplConf(ReplConf),
     Unknown(Unknown),
 }
 
@@ -45,6 +48,7 @@ impl Command {
             "set" => Command::Set(Set::parse_frame(&mut parse)?),
             "keys" => Command::Keys(Keys::parse_frame(&mut parse)?),
             "info" => Command::Info(Info::parse_frame(&mut parse)?),
+            "replconf" => Command::ReplConf(ReplConf::parse_frame(&mut parse)?),
             "config" => {
                 let sub_command_string = parse.next_string()?.to_lowercase();
                 match &sub_command_string[..] {
@@ -78,6 +82,7 @@ impl Command {
             Config(cmd) => cmd.apply(config, conn).await,
             Keys(cmd) => cmd.apply(db, conn).await,
             Info(cmd) => cmd.apply(config, conn).await,
+            ReplConf(cmd) => cmd.apply(conn).await,
             Unknown(cmd) => cmd.apply(conn).await,
         }
     }
