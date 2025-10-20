@@ -52,7 +52,7 @@ impl std::str::FromStr for ReplicaOf {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let parts: Vec<&str> = s.trim().split_whitespace().collect();
+        let parts: Vec<&str> = s.split_whitespace().collect();
         if parts.len() != 2 {
             return Err(format!(
                 "Invalid --replicaof format: expected 'HOST PORT', got '{}'",

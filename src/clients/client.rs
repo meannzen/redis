@@ -4,7 +4,7 @@ use bytes::Bytes;
 use tokio::net::{TcpStream, ToSocketAddrs};
 
 use crate::{
-    command::{ping::Ping, ReplConf},
+    command::{ping::Ping, PSync, ReplConf},
     Connection, Frame,
 };
 
@@ -26,7 +26,7 @@ impl Client {
         self.connection.write_frame(&frame).await?;
         match self.read_response().await? {
             Frame::Simple(value) => Ok(value.into()),
-            Frame::Bulk(value) => Ok(value.into()),
+            Frame::Bulk(value) => Ok(value),
             frame => Err(frame.to_error()),
         }
     }
@@ -36,7 +36,17 @@ impl Client {
         self.connection.write_frame(&frame).await?;
         match self.read_response().await? {
             Frame::Simple(value) => Ok(value.into()),
-            Frame::Bulk(value) => Ok(value.into()),
+            Frame::Bulk(value) => Ok(value),
+            frame => Err(frame.to_error()),
+        }
+    }
+
+    pub async fn p_sync(&mut self, msg: Bytes, option: Bytes) -> crate::Result<Bytes> {
+        let frame = PSync::new([msg, option]).into_frame();
+        self.connection.write_frame(&frame).await?;
+        match self.read_response().await? {
+            Frame::Simple(value) => Ok(value.into()),
+            Frame::Bulk(value) => Ok(value),
             frame => Err(frame.to_error()),
         }
     }

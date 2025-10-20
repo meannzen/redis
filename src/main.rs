@@ -56,6 +56,15 @@ async fn main() -> Result<()> {
         } else {
             println!("{:?}", value);
         }
+        let value = client
+            .p_sync(Bytes::from("?".as_bytes()), Bytes::from("-1".as_bytes()))
+            .await
+            .unwrap();
+        if let Ok(string) = std::str::from_utf8(&value) {
+            println!("\"{}\"", string);
+        } else {
+            println!("{:?}", value);
+        }
         drop(client);
     }
 
