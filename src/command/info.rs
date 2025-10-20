@@ -1,4 +1,4 @@
-use crate::{parse::Parse, server_cli::Cli, Connection, Frame};
+use crate::{parse::Parse, server_cli::Cli, Connection, Frame, MASTER_ID};
 #[derive(Debug)]
 pub struct Info {
     argument: String,
@@ -21,10 +21,10 @@ impl Info {
             if config.replicaof.is_some() {
                 frame = Frame::Simple("role:slave".to_string());
             } else {
-                frame = Frame::Simple(
-                    "role:master master_replid:8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb master_repl_offset:0"
-                        .to_string(),
-                )
+                frame = Frame::Simple(format!(
+                    "role:master master_replid:{} master_repl_offset:0",
+                    MASTER_ID
+                ))
             }
         }
         con.write_frame(&frame).await?;

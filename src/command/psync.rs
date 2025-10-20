@@ -1,6 +1,6 @@
 use bytes::Bytes;
 
-use crate::{parse::Parse, Connection, Frame};
+use crate::{parse::Parse, Connection, Frame, MASTER_ID};
 
 #[derive(Debug, Clone)]
 pub struct PSync {
@@ -23,7 +23,7 @@ impl PSync {
     }
 
     pub async fn apply(self, conn: &mut Connection) -> crate::Result<()> {
-        let frame = Frame::Simple("OK".to_string());
+        let frame = Frame::Simple(format!("FULLRESYNC {} 0", MASTER_ID));
         conn.write_frame(&frame).await?;
         Ok(())
     }
