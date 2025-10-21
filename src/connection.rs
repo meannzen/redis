@@ -68,6 +68,19 @@ impl Connection {
 
         self.stream.flush().await
     }
+
+    pub async fn write_content_file(&mut self, content: Vec<u8>) -> io::Result<()> {
+        self.stream.write_u8(b'$').await?;
+        self.stream
+            .write_all(content.len().to_string().as_bytes())
+            .await?;
+
+        self.stream.write_all(b"\r\n").await?;
+        self.stream.write_all(&content).await?;
+        self.stream.flush().await?;
+        Ok(())
+    }
+
     pub async fn write_value(&mut self, frame: &Frame) -> io::Result<()> {
         match frame {
             Frame::Simple(val) => {

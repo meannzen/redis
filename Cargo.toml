@@ -23,5 +23,6 @@ anyhow = "1.0.98"                                   # error handling
 atoi = "2.0.0"
 bytes = "1.10.1"                                     # helps manage buffers
 clap = { version = "4.5.39", features = ["derive"] }
+hex = "0.4.3"
 thiserror = "2.0.12"                                # error handling
 tokio = { version = "1.45.1", features = ["full"] } # async networking
