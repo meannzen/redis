@@ -1,4 +1,3 @@
-use bytes::Bytes;
 use clap::Parser;
 use redis_starter_rust::{
     clients::Client,
@@ -26,46 +25,7 @@ async fn main() -> Result<()> {
     }) = cli.replicaof
     {
         let mut client = Client::connect(format!("{}:{}", host, master_port)).await?;
-        let value = client.ping(None).await.unwrap();
-        if let Ok(string) = std::str::from_utf8(&value) {
-            println!("\"{}\"", string);
-        } else {
-            println!("{:?}", value);
-        }
-        let value = client
-            .replconf(
-                Bytes::from("listening-port".as_bytes()),
-                Bytes::from("6380".as_bytes()),
-            )
-            .await
-            .unwrap();
-        if let Ok(string) = std::str::from_utf8(&value) {
-            println!("\"{}\"", string);
-        } else {
-            println!("{:?}", value);
-        }
-        let value = client
-            .replconf(
-                Bytes::from("capa".as_bytes()),
-                Bytes::from("psync2".as_bytes()),
-            )
-            .await
-            .unwrap();
-        if let Ok(string) = std::str::from_utf8(&value) {
-            println!("\"{}\"", string);
-        } else {
-            println!("{:?}", value);
-        }
-        let value = client
-            .p_sync(Bytes::from("?".as_bytes()), Bytes::from("-1".as_bytes()))
-            .await
-            .unwrap();
-        if let Ok(string) = std::str::from_utf8(&value) {
-            println!("\"{}\"", string);
-        } else {
-            println!("{:?}", value);
-        }
-        drop(client);
+        Client::replica(&mut client).await?;
     }
 
     server_handle.await?;
