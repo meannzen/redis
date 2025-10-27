@@ -1,7 +1,7 @@
 use ping::Ping;
 
 use crate::parse::Parse;
-use crate::server::Shutdown;
+use crate::server::{ReplicaConnection, Shutdown};
 use crate::store::Db;
 use crate::{Connection, Frame};
 
@@ -72,6 +72,7 @@ impl Command {
 
     pub async fn apply(
         self,
+        replica_connection: &ReplicaConnection,
         db: &Db,
         config: &crate::server_cli::Cli,
         conn: &mut Connection,
@@ -87,8 +88,15 @@ impl Command {
             Keys(cmd) => cmd.apply(db, conn).await,
             Info(cmd) => cmd.apply(config, conn).await,
             ReplConf(cmd) => cmd.apply(conn).await,
-            PSync(cmd) => cmd.apply(conn).await,
+            PSync(cmd) => cmd.apply(conn, replica_connection).await,
             Unknown(cmd) => cmd.apply(conn).await,
+        }
+    }
+
+    pub fn is_writer(&self) -> bool {
+        match self {
+            Command::Set(_) => true,
+            _ => false,
         }
     }
 }

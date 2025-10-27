@@ -1,10 +1,16 @@
-use std::{future::Future, path::Path, sync::Arc};
+use std::{
+    future::Future,
+    path::Path,
+    sync::{Arc, Mutex},
+};
 
 use tokio::{
     net::{TcpListener, TcpStream},
     sync::{broadcast, mpsc, Semaphore},
 };
 const MAX_CONNECTIONS: usize = 250;
+
+pub type ReplicaConnection = Arc<Mutex<Vec<Connection>>>;
 
 use crate::{
     database::parser::RdbParse,
@@ -20,6 +26,7 @@ struct Listener {
     limit_connection: Arc<Semaphore>,
     notify_shutdown: broadcast::Sender<()>,
     shutdown_complete_tx: mpsc::Sender<()>,
+    replica_connection: ReplicaConnection,
 }
 
 impl Listener {
@@ -34,6 +41,7 @@ impl Listener {
                 connection: Connection::new(socket),
                 shutdown: Shutdown::new(self.notify_shutdown.subscribe()),
                 _shutdown_complete: self.shutdown_complete_tx.clone(),
+                replica_connection: self.replica_connection.clone(),
             };
 
             tokio::spawn(async move {
@@ -65,6 +73,7 @@ impl Listener {
 pub async fn run(listener: TcpListener, config: Cli, shutdown: impl Future) {
     let (notify_shutdown, _) = broadcast::channel(1);
     let (shutdown_complete_tx, mut shutdown_complete_rx) = mpsc::channel(1);
+
     let store = Store::new();
     if let Some(file) = config.file_path() {
         let path = Path::new(&file);
@@ -83,6 +92,7 @@ pub async fn run(listener: TcpListener, config: Cli, shutdown: impl Future) {
         notify_shutdown,
         shutdown_complete_tx,
         config: Arc::new(config),
+        replica_connection: Arc::new(Mutex::new(Vec::new())),
     };
 
     tokio::select! {
@@ -114,34 +124,58 @@ struct Handler {
     connection: Connection,
     shutdown: Shutdown,
     _shutdown_complete: mpsc::Sender<()>,
+    replica_connection: ReplicaConnection,
 }
 
 impl Handler {
     async fn run(&mut self) -> crate::Result<()> {
-        while !self.shutdown.is_shutdown() {
-            let i_think_frame = tokio::select! {
-                res = self.connection.read_frame() => res ?,
-                _= self.shutdown.recv() =>{
-                    return Ok(())
+        loop {
+            let frame_opt = tokio::select! {
+                res = self.connection.read_frame() => res,
+                _ = self.shutdown.recv() => {
+                    return Ok(());
                 }
             };
 
-            let frame = match i_think_frame {
+            let frame = match frame_opt? {
                 Some(frame) => frame,
                 None => return Ok(()),
             };
 
-            let command = Command::from_frame(frame)?;
+            let command = Command::from_frame(frame.clone())?;
+            let is_writer = command.is_writer();
+            let connection = Arc::clone(&self.replica_connection);
             command
                 .apply(
+                    &self.replica_connection,
                     &self.db,
                     &self.config,
                     &mut self.connection,
                     &mut self.shutdown,
                 )
                 .await?;
+
+            if is_writer {
+                let replicas: Vec<Connection> = {
+                    let guard = connection.lock().unwrap_or_else(|poison| {
+                        eprintln!("Replica lock poisoned: {:?}", poison);
+                        std::process::exit(1);
+                    });
+                    guard
+                        .iter()
+                        .filter_map(|stream| stream.try_clone().ok())
+                        .collect()
+                };
+                let frame = frame.clone();
+                tokio::spawn(async move {
+                    for mut stream in replicas {
+                        if let Err(e) = stream.write_frame(&frame).await {
+                            eprintln!("Failed to broadcast frame to replica: {:?}", e);
+                        }
+                    }
+                });
+            }
         }
-        Ok(())
     }
 }
 

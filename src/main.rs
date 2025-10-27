@@ -24,8 +24,16 @@ async fn main() -> Result<()> {
         port: master_port,
     }) = cli.replicaof
     {
-        let mut client = Client::connect(format!("{}:{}", host, master_port)).await?;
-        Client::replica(&mut client).await?;
+        tokio::spawn(async move {
+            let mut client = Client::connect(format!("{}:{}", host, master_port))
+                .await
+                .expect("Failed to connect");
+            tokio::select! {
+               res =  Client::replica(&mut client)=> res.expect("Failed to handsack"),
+               _= tokio::signal::ctrl_c() => {
+               }
+            }
+        });
     }
 
     server_handle.await?;

@@ -48,12 +48,12 @@ impl Client {
         self.replconf("listening-port".into(), "6380".into())
             .await?;
         self.replconf("capa".into(), "psync2".into()).await?;
+
         self.p_sync("?".into(), "-1".into()).await?;
-
-        while let Some(frame) = self.connection.read_frame().await? {
-            println!("${frame:?}")
+        self.connection.read_file().await?;
+        while let Some(x) = self.connection.read_frame().await? {
+            println!("{x:?}");
         }
-
         Ok(())
     }
 

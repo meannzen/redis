@@ -1,4 +1,7 @@
-use std::io::{self, Cursor};
+use std::{
+    io::{self, Cursor},
+    os::fd::{AsRawFd, FromRawFd},
+};
 
 use crate::frame::{self, Frame};
 use bytes::{Buf, BytesMut};
@@ -34,6 +37,30 @@ impl Connection {
                 }
             }
         }
+    }
+
+    pub async fn read_file(&mut self) -> crate::Result<()> {
+        self.stream.read_buf(&mut self.buffer).await?;
+        println!("leng: {:?}", self.buffer);
+        self.buffer.clear();
+        Ok(())
+    }
+
+    pub fn try_clone(&self) -> io::Result<Self> {
+        let inner_stream = self.stream.get_ref();
+        let fd = inner_stream.as_raw_fd();
+
+        let dup_fd = unsafe { libc::dup(fd) };
+        if dup_fd == -1 {
+            return Err(io::Error::last_os_error());
+        }
+
+        let dup_std_stream = unsafe { std::net::TcpStream::from_raw_fd(dup_fd) };
+
+        let dup_tokio_stream = TcpStream::from_std(dup_std_stream)
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+
+        Ok(Connection::new(dup_tokio_stream))
     }
 
     fn parse_frame(&mut self) -> crate::Result<Option<Frame>> {
