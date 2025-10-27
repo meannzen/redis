@@ -12,8 +12,9 @@ async fn main() -> Result<()> {
     let cli = Cli::parse();
 
     let server_cli = cli.clone();
+    let server_port = server_cli.port();
     let server_handle = tokio::spawn(async move {
-        let listener = TcpListener::bind(format!("127.0.0.1:{}", server_cli.port()))
+        let listener = TcpListener::bind(format!("127.0.0.1:{}", server_port))
             .await
             .expect("Failed to bind listener");
         server::run(listener, server_cli, tokio::signal::ctrl_c()).await
@@ -29,7 +30,7 @@ async fn main() -> Result<()> {
                 .await
                 .expect("Failed to connect");
             tokio::select! {
-               res =  Client::replica(&mut client)=> res.expect("Failed to handsack"),
+               res =  Client::replica(&mut client, server_port)=> res.expect("Failed to handsack"),
                _= tokio::signal::ctrl_c() => {
                }
             }

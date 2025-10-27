@@ -51,4 +51,18 @@ impl Set {
         dst.write_frame(&response).await?;
         Ok(())
     }
+
+    pub fn into_frame(self) -> Frame {
+        let mut frame = Frame::array();
+        frame.push_bulk(Bytes::from("set"));
+        frame.push_bulk(Bytes::from(self.key));
+        frame.push_bulk(self.value);
+
+        if let Some(ms) = self.expire {
+            frame.push_bulk(Bytes::from("px"));
+            frame.push_int(ms.as_millis() as u64);
+        }
+
+        frame
+    }
 }

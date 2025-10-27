@@ -41,7 +41,6 @@ impl Connection {
 
     pub async fn read_file(&mut self) -> crate::Result<()> {
         self.stream.read_buf(&mut self.buffer).await?;
-        println!("leng: {:?}", self.buffer);
         self.buffer.clear();
         Ok(())
     }
@@ -57,8 +56,7 @@ impl Connection {
 
         let dup_std_stream = unsafe { std::net::TcpStream::from_raw_fd(dup_fd) };
 
-        let dup_tokio_stream = TcpStream::from_std(dup_std_stream)
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+        let dup_tokio_stream = TcpStream::from_std(dup_std_stream).map_err(io::Error::other)?;
 
         Ok(Connection::new(dup_tokio_stream))
     }

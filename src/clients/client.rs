@@ -27,9 +27,7 @@ impl Client {
     ///
     /// A `Result` containing the `Client` on success or an error if the connection fails.
     pub async fn connect<T: ToSocketAddrs>(addr: T) -> Result<Self> {
-        let socket = TcpStream::connect(addr)
-            .await
-            .map_err(|e| crate::Error::from(e))?;
+        let socket = TcpStream::connect(addr).await.map_err(crate::Error::from)?;
         let connection = Connection::new(socket);
         Ok(Client { connection })
     }
@@ -43,7 +41,7 @@ impl Client {
     /// # Returns
     ///
     /// A `Result` indicating success or an error if the handshake or frame processing fails.
-    pub async fn replica(&mut self) -> Result<()> {
+    pub async fn replica(&mut self, port: u16) -> Result<()> {
         self.ping(None).await?;
         self.replconf("listening-port".into(), "6380".into())
             .await?;
@@ -51,8 +49,10 @@ impl Client {
 
         self.p_sync("?".into(), "-1".into()).await?;
         self.connection.read_file().await?;
-        while let Some(x) = self.connection.read_frame().await? {
-            println!("{x:?}");
+
+        let mut clinet = Client::connect(format!("127.0.0.1:{}", port)).await?;
+        while let Some(frame) = self.connection.read_frame().await? {
+            clinet.connection.write_frame(&frame).await?;
         }
         Ok(())
     }

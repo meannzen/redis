@@ -18,7 +18,6 @@ pub enum Frame {
 #[derive(Debug)]
 pub enum Error {
     Incomplete,
-
     Other(crate::Error),
 }
 
@@ -26,6 +25,7 @@ impl Frame {
     pub(crate) fn array() -> Frame {
         Frame::Array(vec![])
     }
+
     pub(crate) fn push_bulk(&mut self, bytes: Bytes) {
         match self {
             Frame::Array(vec) => {
@@ -34,7 +34,7 @@ impl Frame {
             _ => panic!("not an array frame"),
         }
     }
-    #[allow(dead_code)]
+
     pub(crate) fn push_int(&mut self, value: u64) {
         match self {
             Frame::Array(vec) => {
@@ -63,7 +63,6 @@ impl Frame {
                     skip(src, 4)
                 } else {
                     let len: usize = get_decimal(src)?.try_into()?;
-
                     skip(src, len + 2)
                 }
             }
@@ -84,16 +83,12 @@ impl Frame {
         match get_u8(src)? {
             b'+' => {
                 let line = get_line(src)?.to_vec();
-
                 let string = String::from_utf8(line)?;
-
                 Ok(Frame::Simple(string))
             }
             b'-' => {
                 let line = get_line(src)?.to_vec();
-
                 let string = String::from_utf8(line)?;
-
                 Ok(Frame::Error(string))
             }
             b':' => {
@@ -220,6 +215,7 @@ fn get_line<'a>(src: &mut Cursor<&'a [u8]>) -> Result<&'a [u8], Error> {
     for i in start..end {
         if src.get_ref()[i] == b'\r' && src.get_ref()[i + 1] == b'\n' {
             src.set_position((i + 2) as u64);
+
             return Ok(&src.get_ref()[start..i]);
         }
     }

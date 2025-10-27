@@ -94,9 +94,6 @@ impl Command {
     }
 
     pub fn is_writer(&self) -> bool {
-        match self {
-            Command::Set(_) => true,
-            _ => false,
-        }
+        matches!(self, Command::Set(_))
     }
 }
