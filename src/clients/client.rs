@@ -3,6 +3,7 @@ use std::io::{Error, ErrorKind};
 use tokio::net::{TcpStream, ToSocketAddrs};
 
 use crate::command::ping::Ping;
+use crate::parse::Parse;
 use crate::{
     command::{PSync, ReplConf},
     Connection, Frame, Result,
@@ -50,9 +51,24 @@ impl Client {
         self.p_sync("?".into(), "-1".into()).await?;
         self.connection.read_file().await?;
 
-        let mut clinet = Client::connect(format!("127.0.0.1:{}", port)).await?;
+        let mut client = Client::connect(format!("127.0.0.1:{}", port)).await?;
+        let mut write_frame = Frame::array();
+
+        write_frame.push_bulk(Bytes::from("REPLCONF"));
+        write_frame.push_bulk(Bytes::from("ACK"));
+        write_frame.push_bulk(Bytes::from("0"));
+
         while let Some(frame) = self.connection.read_frame().await? {
-            clinet.connection.write_frame(&frame).await?;
+            let mut parse = Parse::new(frame.clone())?;
+            let command = parse.next_string().unwrap_or("".to_string());
+            if command == "REPLCONF"
+                && parse.next_bytes().unwrap_or(Bytes::from("")) == "GETACK"
+                && parse.next_bytes().unwrap_or(Bytes::from("")) == "*"
+            {
+                self.connection.write_frame(&write_frame).await?;
+                continue;
+            }
+            client.connection.write_frame(&frame).await?;
         }
         Ok(())
     }
