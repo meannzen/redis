@@ -14,6 +14,7 @@ use tokio::{
 pub struct Connection {
     stream: BufWriter<TcpStream>,
     buffer: BytesMut,
+    len: usize,
 }
 
 impl Connection {
@@ -21,6 +22,7 @@ impl Connection {
         Connection {
             stream: BufWriter::new(stream),
             buffer: BytesMut::with_capacity(4 * 1024),
+            len: 0,
         }
     }
     pub async fn read_frame(&mut self) -> crate::Result<Option<Frame>> {
@@ -96,6 +98,10 @@ impl Connection {
         }
     }
 
+    pub fn get_len(&self) -> usize {
+        self.len
+    }
+
     pub fn try_clone(&self) -> io::Result<Self> {
         let inner_stream = self.stream.get_ref();
         let fd = inner_stream.as_raw_fd();
@@ -116,11 +122,11 @@ impl Connection {
         use frame::Error::Incomplete;
 
         let mut buff = Cursor::new(&self.buffer[..]);
-
         match Frame::check(&mut buff) {
             Ok(_) => {
                 let len = buff.position() as usize;
                 buff.set_position(0);
+                self.len = len;
                 let frame = Frame::parse(&mut buff)?;
                 self.buffer.advance(len);
                 Ok(Some(frame))

@@ -52,11 +52,8 @@ impl Client {
         self.connection.read_file().await?;
 
         let mut client = Client::connect(format!("127.0.0.1:{}", port)).await?;
-        let mut write_frame = Frame::array();
 
-        write_frame.push_bulk(Bytes::from("REPLCONF"));
-        write_frame.push_bulk(Bytes::from("ACK"));
-        write_frame.push_bulk(Bytes::from("0"));
+        let mut offset = 0;
 
         while let Some(frame) = self.connection.read_frame().await? {
             let mut parse = Parse::new(frame.clone())?;
@@ -65,10 +62,21 @@ impl Client {
                 && parse.next_bytes().unwrap_or(Bytes::from("")) == "GETACK"
                 && parse.next_bytes().unwrap_or(Bytes::from("")) == "*"
             {
+                let mut write_frame = Frame::array();
+                write_frame.push_bulk(Bytes::from("REPLCONF"));
+                write_frame.push_bulk(Bytes::from("ACK"));
+                write_frame.push_bulk(Bytes::from(offset.to_string()));
                 self.connection.write_frame(&write_frame).await?;
+                offset += self.connection.get_len();
                 continue;
             }
+            if command == "PING" {
+                offset += self.connection.get_len();
+                continue;
+            }
+
             client.connection.write_frame(&frame).await?;
+            offset += self.connection.get_len();
         }
         Ok(())
     }
