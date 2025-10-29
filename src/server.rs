@@ -2,6 +2,7 @@ use std::{
     future::Future,
     path::Path,
     sync::{Arc, Mutex},
+    time::Duration,
 };
 
 use tokio::{
@@ -62,10 +63,13 @@ impl Listener {
                     if backoff > 64 {
                         return Err(err.into());
                     }
+
+                    eprintln!("accept failed, backing off for {}s: {:?}", backoff, err);
+                    tokio::time::sleep(Duration::from_secs(backoff)).await;
+
+                    backoff *= 2;
                 }
             }
-
-            backoff *= 2;
         }
     }
 }

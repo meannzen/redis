@@ -39,10 +39,61 @@ impl Connection {
         }
     }
 
+    /// Reads an RDB file from the connection stream.
+    ///
+    /// The RDB file is expected in the format `$<length>\r\n<contents>`. This function
+    /// handles the streaming nature of TCP by repeatedly reading from the socket until
+    /// the complete RDB file, as specified by its length header, has been received.
     pub async fn read_file(&mut self) -> crate::Result<()> {
-        self.stream.read_buf(&mut self.buffer).await?;
-        self.buffer.clear();
-        Ok(())
+        loop {
+            if let Some((length, header_len)) = self.parse_rdb_header()? {
+                let total_len = header_len + length;
+                if self.buffer.len() >= total_len {
+                    self.buffer.advance(total_len);
+                    return Ok(());
+                }
+            }
+
+            if 0 == self.stream.read_buf(&mut self.buffer).await? {
+                return if self.buffer.is_empty() {
+                    Ok(())
+                } else {
+                    Err("connection reset by peer".into())
+                };
+            }
+        }
+    }
+
+    /// Parses the header of an RDB file to extract its length.
+    ///
+    /// The header is expected to be in the format `$<length>\r\n`.
+    ///
+    /// # Returns
+    ///
+    /// - `Ok(Some((length, header_len)))` if the header is fully present in the buffer.
+    ///   `length` is the size of the RDB content, and `header_len` is the size of the
+    ///   `$<length>\r\n` header itself.
+    /// - `Ok(None)` if the buffer does not yet contain a complete header.
+    /// - `Err` if the header is malformed.
+    fn parse_rdb_header(&self) -> crate::Result<Option<(usize, usize)>> {
+        if self.buffer.is_empty() {
+            return Ok(None);
+        }
+
+        if self.buffer[0] != b'$' {
+            return Err("protocol error; expected '$' for RDB file".into());
+        }
+
+        if let Some(pos) = self.buffer[1..].windows(2).position(|w| w == b"\r\n") {
+            let line_end = 1 + pos;
+            let len_bytes = &self.buffer[1..line_end];
+            let len_str = std::str::from_utf8(len_bytes)?;
+            let length = len_str.parse::<usize>()?;
+            let header_len = line_end + 2;
+            Ok(Some((length, header_len)))
+        } else {
+            Ok(None)
+        }
     }
 
     pub fn try_clone(&self) -> io::Result<Self> {
