@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use crate::{parse::Parse, Connection, Frame};
+use crate::{parse::Parse, server::ReplicaConnection, Connection, Frame};
 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
@@ -19,8 +19,13 @@ impl Wait {
         })
     }
 
-    pub async fn apply(self, conn: &mut Connection) -> crate::Result<()> {
-        let frame = Frame::Integer(self.numreplicas);
+    pub async fn apply(
+        self,
+        conn: &mut Connection,
+        replica_connection: &ReplicaConnection,
+    ) -> crate::Result<()> {
+        let len = replica_connection.lock().unwrap().len() as u64;
+        let frame = Frame::Integer(len);
         conn.write_frame(&frame).await?;
         Ok(())
     }

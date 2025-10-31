@@ -93,7 +93,7 @@ impl Command {
             Info(cmd) => cmd.apply(config, conn).await,
             ReplConf(cmd) => cmd.apply(conn).await,
             PSync(cmd) => cmd.apply(conn, replica_connection).await,
-            Wait(cmd) => cmd.apply(conn).await,
+            Wait(cmd) => cmd.apply(conn, replica_connection).await,
             Unknown(cmd) => cmd.apply(conn).await,
         }
     }
