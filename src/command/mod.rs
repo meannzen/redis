@@ -15,6 +15,7 @@ pub mod psync;
 pub mod replconf;
 pub mod set;
 pub mod unknown;
+pub mod wait;
 pub use config::Config;
 pub use echo::Echo;
 pub use get::Get;
@@ -24,6 +25,7 @@ pub use psync::PSync;
 pub use replconf::ReplConf;
 pub use set::Set;
 pub use unknown::Unknown;
+pub use wait::Wait;
 
 #[derive(Debug)]
 pub enum Command {
@@ -36,6 +38,7 @@ pub enum Command {
     Info(Info),
     ReplConf(ReplConf),
     PSync(PSync),
+    Wait(Wait),
     Unknown(Unknown),
 }
 
@@ -53,6 +56,7 @@ impl Command {
             "info" => Command::Info(Info::parse_frame(&mut parse)?),
             "replconf" => Command::ReplConf(ReplConf::parse_frame(&mut parse)?),
             "psync" => Command::PSync(PSync::parse_frame(&mut parse)?),
+            "wait" => Command::Wait(Wait::parse_frame(&mut parse)?),
             "config" => {
                 let sub_command_string = parse.next_string()?.to_lowercase();
                 match &sub_command_string[..] {
@@ -89,6 +93,7 @@ impl Command {
             Info(cmd) => cmd.apply(config, conn).await,
             ReplConf(cmd) => cmd.apply(conn).await,
             PSync(cmd) => cmd.apply(conn, replica_connection).await,
+            Wait(cmd) => cmd.apply(conn).await,
             Unknown(cmd) => cmd.apply(conn).await,
         }
     }
