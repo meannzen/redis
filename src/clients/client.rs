@@ -54,8 +54,10 @@ impl Client {
         let mut client = Client::connect(format!("127.0.0.1:{}", port)).await?;
 
         let mut offset = 0;
-
         while let Some(frame) = self.connection.read_frame().await? {
+            if matches!(frame, Frame::Simple(_)) {
+                continue;
+            }
             let mut parse = Parse::new(frame.clone())?;
             let command = parse.next_string().unwrap_or("".to_string());
             if command == "REPLCONF"
@@ -106,7 +108,7 @@ impl Client {
     /// # Returns
     ///
     /// A `Result` containing the server's response as `Bytes` or an error.
-    pub async fn replconf(&mut self, key: Bytes, value: Bytes) -> Result<Bytes> {
+    pub async fn replconf(&mut self, key: String, value: String) -> Result<Bytes> {
         let frame = ReplConf::new(key, value).into_frame();
         self.connection.write_frame(&frame).await?;
         self.process_response().await

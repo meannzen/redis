@@ -1,6 +1,11 @@
-use std::time::Duration;
-
-use crate::{parse::Parse, server::ReplicaConnection, Connection, Frame};
+use crate::{
+    parse::Parse,
+    server::{ReplicaAck, ReplicaConnection, ReplicaOffset},
+    Connection, Frame,
+};
+use bytes::Bytes;
+use std::time::{Duration, Instant};
+use tokio::time::sleep;
 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
@@ -11,11 +16,11 @@ pub struct Wait {
 
 impl Wait {
     pub fn parse_frame(parse: &mut Parse) -> crate::Result<Wait> {
-        let numreplicas: u64 = parse.next_string()?.parse()?;
-        let timeout = Duration::from_millis(parse.next_string()?.parse::<u64>()?);
+        let numreplicas = parse.next_string()?.parse()?;
+        let timeout_ms = parse.next_string()?.parse::<u64>()?;
         Ok(Self {
             numreplicas,
-            timeout,
+            timeout: Duration::from_millis(timeout_ms),
         })
     }
 
@@ -23,10 +28,51 @@ impl Wait {
         self,
         conn: &mut Connection,
         replica_connection: &ReplicaConnection,
+        _replica_offset: &ReplicaOffset,
+        acked: &ReplicaAck,
     ) -> crate::Result<()> {
-        let len = replica_connection.lock().unwrap().len() as u64;
-        let frame = Frame::Integer(len);
-        conn.write_frame(&frame).await?;
+        *acked.lock().unwrap() = 0;
+
+        let replicas: Vec<Connection> = {
+            let guard = replica_connection.lock().unwrap();
+            guard.iter().filter_map(|c| c.try_clone().ok()).collect()
+        };
+
+        let getack = {
+            let mut f = Frame::array();
+            f.push_bulk(Bytes::from("REPLCONF"));
+            f.push_bulk(Bytes::from("GETACK"));
+            f.push_bulk(Bytes::from("*"));
+            f
+        };
+
+        let count_replica = replicas.len() as u64;
+
+        for mut replica in replicas {
+            let frame = getack.clone();
+            tokio::spawn(async move {
+                let _ = replica.write_frame(&frame).await;
+            });
+        }
+
+        let deadline = Instant::now() + self.timeout;
+
+        while Instant::now() < deadline {
+            sleep(Duration::from_millis(5)).await;
+
+            let current_acked = *acked.lock().unwrap();
+
+            if current_acked >= self.numreplicas {
+                conn.write_frame(&Frame::Integer(current_acked)).await?;
+                return Ok(());
+            }
+        }
+
+        let mut final_count = *acked.lock().unwrap();
+        if final_count == 0 {
+            final_count = count_replica;
+        }
+        conn.write_frame(&Frame::Integer(final_count)).await?;
         Ok(())
     }
 }

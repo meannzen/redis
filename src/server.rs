@@ -12,6 +12,8 @@ use tokio::{
 const MAX_CONNECTIONS: usize = 250;
 
 pub type ReplicaConnection = Arc<Mutex<Vec<Connection>>>;
+pub type ReplicaOffset = Arc<Mutex<u64>>;
+pub type ReplicaAck = Arc<Mutex<u64>>;
 
 use crate::{
     database::parser::RdbParse,
@@ -28,6 +30,8 @@ struct Listener {
     notify_shutdown: broadcast::Sender<()>,
     shutdown_complete_tx: mpsc::Sender<()>,
     replica_connection: ReplicaConnection,
+    replica_offset: ReplicaOffset,
+    acked: ReplicaAck,
 }
 
 impl Listener {
@@ -43,6 +47,8 @@ impl Listener {
                 shutdown: Shutdown::new(self.notify_shutdown.subscribe()),
                 _shutdown_complete: self.shutdown_complete_tx.clone(),
                 replica_connection: self.replica_connection.clone(),
+                replica_offset: self.replica_offset.clone(),
+                acked: self.acked.clone(),
             };
 
             tokio::spawn(async move {
@@ -97,6 +103,8 @@ pub async fn run(listener: TcpListener, config: Cli, shutdown: impl Future) {
         shutdown_complete_tx,
         config: Arc::new(config),
         replica_connection: Arc::new(Mutex::new(Vec::new())),
+        replica_offset: Arc::new(Mutex::new(0)),
+        acked: Arc::new(Mutex::new(0)),
     };
 
     tokio::select! {
@@ -129,6 +137,8 @@ struct Handler {
     shutdown: Shutdown,
     _shutdown_complete: mpsc::Sender<()>,
     replica_connection: ReplicaConnection,
+    replica_offset: ReplicaOffset,
+    acked: ReplicaAck,
 }
 
 impl Handler {
@@ -151,6 +161,8 @@ impl Handler {
             let connection = Arc::clone(&self.replica_connection);
             command
                 .apply(
+                    &self.acked,
+                    &self.replica_offset,
                     &self.replica_connection,
                     &self.db,
                     &self.config,
@@ -160,6 +172,14 @@ impl Handler {
                 .await?;
 
             if is_writer {
+                let frame_len = frame.clone().to_vec().len() as u64;
+                {
+                    let mut off_guard = self.replica_offset.lock().unwrap_or_else(|poison| {
+                        eprintln!("Replica lock poisoned: {:?}", poison);
+                        std::process::exit(1);
+                    });
+                    *off_guard += frame_len;
+                }
                 let replicas: Vec<Connection> = {
                     let guard = connection.lock().unwrap_or_else(|poison| {
                         eprintln!("Replica lock poisoned: {:?}", poison);

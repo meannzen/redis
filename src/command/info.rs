@@ -16,15 +16,17 @@ impl Info {
     }
 
     pub async fn apply(self, config: &Cli, con: &mut Connection) -> crate::Result<()> {
-        let mut frame = Frame::Null;
+        let mut frame = Frame::array();
         if &self.argument.to_lowercase() == "replication" {
             if config.replicaof.is_some() {
-                frame = Frame::Simple("role:slave".to_string());
+                frame = Frame::Bulk("role:slave".into());
             } else {
-                frame = Frame::Simple(format!(
+                let master = format!(
                     "role:master master_replid:{} master_repl_offset:0",
                     MASTER_ID
-                ))
+                );
+
+                frame = Frame::Bulk(master.into());
             }
         }
         con.write_frame(&frame).await?;

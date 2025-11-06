@@ -135,6 +135,58 @@ impl Frame {
     pub(crate) fn to_error(&self) -> crate::Error {
         format!("unexpected frame: {}", self).into()
     }
+
+    /// Serialize the Frame into its RESP wire format as a Vec<u8>.
+    ///
+    /// This is useful for computing the exact number of bytes that will be sent
+    /// on the wire for a given frame, for example when updating replication offsets.
+    pub fn to_vec(&self) -> Vec<u8> {
+        let mut out = Vec::new();
+        self.write_to(&mut out);
+        out
+    }
+
+    fn write_to(&self, out: &mut Vec<u8>) {
+        match self {
+            Frame::Simple(val) => {
+                out.push(b'+');
+                out.extend_from_slice(val.as_bytes());
+                out.extend_from_slice(b"\r\n");
+            }
+            Frame::Error(val) => {
+                out.push(b'-');
+                out.extend_from_slice(val.as_bytes());
+                out.extend_from_slice(b"\r\n");
+            }
+            Frame::Integer(v) => {
+                out.push(b':');
+                write_decimal_to(out, *v);
+            }
+            Frame::Bulk(bytes) => {
+                out.push(b'$');
+                write_decimal_to(out, bytes.len() as u64);
+                out.extend_from_slice(&bytes[..]);
+                out.extend_from_slice(b"\r\n");
+            }
+            Frame::Null => {
+                out.extend_from_slice(b"$-1\r\n");
+            }
+            Frame::Array(parts) => {
+                out.push(b'*');
+                write_decimal_to(out, parts.len() as u64);
+                for p in parts {
+                    p.write_to(out);
+                }
+            }
+        }
+    }
+}
+
+fn write_decimal_to(out: &mut Vec<u8>, val: u64) {
+    // write number then CRLF
+    let s = val.to_string();
+    out.extend_from_slice(s.as_bytes());
+    out.extend_from_slice(b"\r\n");
 }
 
 impl PartialEq<&str> for Frame {

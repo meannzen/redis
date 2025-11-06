@@ -1,7 +1,7 @@
 use ping::Ping;
 
 use crate::parse::Parse;
-use crate::server::{ReplicaAck, ReplicaConnection, ReplicaOffset, Shutdown};
+use crate::server::{ReplicaConnection, ReplicaOffset, Replica_ACK, Shutdown};
 use crate::store::Db;
 use crate::{Connection, Frame};
 
@@ -76,7 +76,7 @@ impl Command {
 
     pub async fn apply(
         self,
-        acked: &ReplicaAck,
+        acked: &Replica_ACK,
         replica_offset: &ReplicaOffset,
         replica_connection: &ReplicaConnection,
         db: &Db,
@@ -95,10 +95,7 @@ impl Command {
             Info(cmd) => cmd.apply(config, conn).await,
             ReplConf(cmd) => cmd.apply(conn, replica_offset, acked).await,
             PSync(cmd) => cmd.apply(conn, replica_connection).await,
-            Wait(cmd) => {
-                cmd.apply(conn, replica_connection, replica_offset, acked)
-                    .await
-            }
+            Wait(cmd) => cmd.apply(conn, replica_connection, acked).await,
             Unknown(cmd) => cmd.apply(conn).await,
         }
     }
