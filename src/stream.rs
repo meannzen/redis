@@ -8,6 +8,12 @@ pub struct StreamId {
     seq: u64,
 }
 
+impl StreamId {
+    pub fn is_invalid(&self) -> bool {
+        self.ms == 0 && self.seq == 0
+    }
+}
+
 pub type Fields = Vec<(String, Bytes)>;
 #[derive(Debug, Default)]
 pub struct Stream {
@@ -18,6 +24,10 @@ impl Stream {
     pub fn xadd(&mut self, id: StreamId, fields: Fields) -> StreamId {
         self.entries.insert(id.clone(), fields);
         id
+    }
+
+    pub fn last_id(&self) -> Option<StreamId> {
+        self.entries.keys().last().cloned()
     }
 }
 

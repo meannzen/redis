@@ -114,11 +114,19 @@ impl Db {
         state.stream.contains_key(key)
     }
 
-    pub fn xadd(&self, key: String, id: StreamId, fields: Fields) -> String {
+    pub fn xadd(&self, key: String, id: StreamId, fields: Fields) -> Result<String, String> {
         let mut state = self.shared.state.lock().unwrap();
+        if id.is_invalid() {
+            return Err("ERR The ID specified in XADD must be greater than 0-0".to_string());
+        }
         let stream = state.stream.entry(key).or_default();
+        if let Some(last_id) = stream.last_id() {
+            if id <= last_id {
+                return Err("ERR The ID specified in XADD is equal or smaller than the target stream top item".to_string());
+            }
+        }
         let stream_id = stream.xadd(id, fields);
-        stream_id.to_string()
+        Ok(stream_id.to_string())
     }
 
     pub fn set(&self, key: String, value: Bytes, expire: Option<Duration>) {

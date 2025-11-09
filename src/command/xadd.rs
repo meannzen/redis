@@ -43,8 +43,11 @@ impl XAdd {
 
     pub async fn apply(self, db: &Db, dst: &mut Connection) -> crate::Result<()> {
         let sid = StreamId::from_str(&self.id).map_err(|e| e.to_string())?;
-        let stored = db.xadd(self.key, sid, self.fields);
-        dst.write_frame(&Frame::Bulk(Bytes::from(stored))).await?;
+        let frame = match db.xadd(self.key, sid, self.fields) {
+            Ok(s) => Frame::Bulk(Bytes::from(s)),
+            Err(e) => Frame::Error(e),
+        };
+        dst.write_frame(&frame).await?;
         Ok(())
     }
 }
