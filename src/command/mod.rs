@@ -14,6 +14,7 @@ pub mod ping;
 pub mod psync;
 pub mod replconf;
 pub mod set;
+pub mod type_cmd;
 pub mod unknown;
 pub mod wait;
 pub use config::Config;
@@ -24,6 +25,7 @@ pub use key::Keys;
 pub use psync::PSync;
 pub use replconf::ReplConf;
 pub use set::Set;
+pub use type_cmd::Type;
 pub use unknown::Unknown;
 pub use wait::Wait;
 
@@ -39,6 +41,7 @@ pub enum Command {
     ReplConf(ReplConf),
     PSync(PSync),
     Wait(Wait),
+    Type(Type),
     Unknown(Unknown),
 }
 
@@ -57,6 +60,7 @@ impl Command {
             "replconf" => Command::ReplConf(ReplConf::parse_frame(&mut parse)?),
             "psync" => Command::PSync(PSync::parse_frame(&mut parse)?),
             "wait" => Command::Wait(Wait::parse_frame(&mut parse)?),
+            "type" => Command::Type(Type::parse_frame(&mut parse)?),
             "config" => {
                 let sub_command_string = parse.next_string()?.to_lowercase();
                 match &sub_command_string[..] {
@@ -99,6 +103,7 @@ impl Command {
                 cmd.apply(conn, replica_connection, replica_offset, acked)
                     .await
             }
+            Type(cmd) => cmd.apply(db, conn).await,
             Unknown(cmd) => cmd.apply(conn).await,
         }
     }
