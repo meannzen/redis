@@ -17,6 +17,7 @@ pub mod set;
 pub mod type_cmd;
 pub mod unknown;
 pub mod wait;
+pub mod xadd;
 pub use config::Config;
 pub use echo::Echo;
 pub use get::Get;
@@ -28,6 +29,7 @@ pub use set::Set;
 pub use type_cmd::Type;
 pub use unknown::Unknown;
 pub use wait::Wait;
+pub use xadd::XAdd;
 
 #[derive(Debug)]
 pub enum Command {
@@ -42,6 +44,7 @@ pub enum Command {
     PSync(PSync),
     Wait(Wait),
     Type(Type),
+    XAdd(XAdd),
     Unknown(Unknown),
 }
 
@@ -61,6 +64,7 @@ impl Command {
             "psync" => Command::PSync(PSync::parse_frame(&mut parse)?),
             "wait" => Command::Wait(Wait::parse_frame(&mut parse)?),
             "type" => Command::Type(Type::parse_frame(&mut parse)?),
+            "xadd" => Command::XAdd(XAdd::parse_frame(&mut parse)?),
             "config" => {
                 let sub_command_string = parse.next_string()?.to_lowercase();
                 match &sub_command_string[..] {
@@ -104,6 +108,7 @@ impl Command {
                     .await
             }
             Type(cmd) => cmd.apply(db, conn).await,
+            XAdd(cmd) => cmd.apply(db, conn).await,
             Unknown(cmd) => cmd.apply(conn).await,
         }
     }

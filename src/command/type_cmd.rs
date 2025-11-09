@@ -18,7 +18,9 @@ impl Type {
         Ok(Type { key })
     }
     pub async fn apply(self, db: &Db, dst: &mut Connection) -> crate::Result<()> {
-        let response = if db.get(&self.key).is_some() {
+        let response = if db.is_stream(&self.key) {
+            Frame::Simple("stream".to_string())
+        } else if db.get(&self.key).is_some() {
             Frame::Simple("string".to_string())
         } else {
             Frame::Simple("none".to_string())

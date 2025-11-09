@@ -9,6 +9,8 @@ use tokio::{
     time::{self, Duration, Instant},
 };
 
+use crate::stream::{Fields, Stream, StreamId};
+
 #[derive(Debug)]
 pub struct Store {
     pub db: Db,
@@ -28,6 +30,7 @@ struct Shared {
 struct State {
     entries: HashMap<String, Entry>,
     expirations: BTreeSet<(Instant, String)>,
+    stream: HashMap<String, Stream>,
     shutdown: bool,
 }
 
@@ -64,6 +67,7 @@ impl Db {
         let shared = Arc::new(Shared {
             state: Mutex::new(State {
                 entries: HashMap::new(),
+                stream: HashMap::new(),
                 expirations: BTreeSet::new(),
                 shutdown: false,
             }),
@@ -85,6 +89,8 @@ impl Db {
 
         if key == "*" {
             result_keys = state.entries.keys().cloned().map(|x| x.into()).collect();
+            // extend steam key heee
+            result_keys.extend(state.stream.keys().cloned().map(|x| x.into()));
         } else if key.ends_with('*') {
             let prefix = &key[0..key.len() - 1];
             for (k, _) in state.entries.iter() {
@@ -101,6 +107,18 @@ impl Db {
         }
 
         result_keys
+    }
+
+    pub fn is_stream(&self, key: &str) -> bool {
+        let state = self.shared.state.lock().unwrap();
+        state.stream.contains_key(key)
+    }
+
+    pub fn xadd(&self, key: String, id: StreamId, fields: Fields) -> String {
+        let mut state = self.shared.state.lock().unwrap();
+        let stream = state.stream.entry(key).or_default();
+        let stream_id = stream.xadd(id, fields);
+        stream_id.to_string()
     }
 
     pub fn set(&self, key: String, value: Bytes, expire: Option<Duration>) {

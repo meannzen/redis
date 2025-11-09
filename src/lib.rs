@@ -7,6 +7,7 @@ pub mod parse;
 pub mod server;
 pub mod server_cli;
 pub mod store;
+pub mod stream;
 pub use command::Command;
 pub use connection::Connection;
 pub use frame::Frame;
