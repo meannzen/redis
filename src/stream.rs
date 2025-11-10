@@ -29,6 +29,34 @@ impl Stream {
     pub fn last_id(&self) -> Option<StreamId> {
         self.entries.keys().last().cloned()
     }
+
+    pub fn generate_id(&self, ms: u64) -> StreamId {
+        if ms == 0 {
+            let last_seq = self
+                .entries
+                .keys()
+                .filter(|k| k.ms == ms)
+                .map(|k| k.seq)
+                .max()
+                .unwrap_or(0);
+            return StreamId {
+                ms,
+                seq: last_seq + 1,
+            };
+        }
+
+        let last_seq_for_ms = self
+            .entries
+            .keys()
+            .filter(|k| k.ms == ms)
+            .map(|k| k.seq)
+            .max();
+
+        match last_seq_for_ms {
+            Some(seq) => StreamId { ms, seq: seq + 1 },
+            None => StreamId { ms, seq: 0 },
+        }
+    }
 }
 
 impl std::fmt::Display for StreamId {

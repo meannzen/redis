@@ -10,6 +10,7 @@ use tokio::{
 };
 
 use crate::stream::{Fields, Stream, StreamId};
+use std::str::FromStr;
 
 #[derive(Debug)]
 pub struct Store {
@@ -114,12 +115,25 @@ impl Db {
         state.stream.contains_key(key)
     }
 
-    pub fn xadd(&self, key: String, id: StreamId, fields: Fields) -> Result<String, String> {
+    pub fn xadd(&self, key: String, id_str: String, fields: Fields) -> Result<String, String> {
         let mut state = self.shared.state.lock().unwrap();
+        let stream = state.stream.entry(key).or_default();
+
+        let id = if id_str.ends_with("-*") {
+            let mut parts = id_str.splitn(2, '-');
+            let ms_str = parts.next().unwrap();
+            let ms = ms_str
+                .parse::<u64>()
+                .map_err(|_| "ERR Invalid stream ID specified as stream key".to_string())?;
+
+            stream.generate_id(ms)
+        } else {
+            StreamId::from_str(&id_str).map_err(|e| e.to_string())?
+        };
+
         if id.is_invalid() {
             return Err("ERR The ID specified in XADD must be greater than 0-0".to_string());
         }
-        let stream = state.stream.entry(key).or_default();
         if let Some(last_id) = stream.last_id() {
             if id <= last_id {
                 return Err("ERR The ID specified in XADD is equal or smaller than the target stream top item".to_string());

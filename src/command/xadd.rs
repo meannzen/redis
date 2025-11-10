@@ -1,8 +1,6 @@
-use std::str::FromStr;
-
 use bytes::Bytes;
 
-use crate::stream::{Fields, StreamId};
+use crate::stream::Fields;
 use crate::{parse::Parse, store::Db, Connection, Frame};
 
 #[derive(Debug)]
@@ -42,8 +40,7 @@ impl XAdd {
     }
 
     pub async fn apply(self, db: &Db, dst: &mut Connection) -> crate::Result<()> {
-        let sid = StreamId::from_str(&self.id).map_err(|e| e.to_string())?;
-        let frame = match db.xadd(self.key, sid, self.fields) {
+        let frame = match db.xadd(self.key, self.id, self.fields) {
             Ok(s) => Frame::Bulk(Bytes::from(s)),
             Err(e) => Frame::Error(e),
         };
