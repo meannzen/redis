@@ -17,6 +17,7 @@ pub mod type_cmd;
 pub mod unknown;
 pub mod wait;
 pub mod xadd;
+pub mod xrange;
 pub use config::Config;
 pub use echo::Echo;
 pub use get::Get;
@@ -29,6 +30,7 @@ pub use type_cmd::Type;
 pub use unknown::Unknown;
 pub use wait::Wait;
 pub use xadd::XAdd;
+pub use xrange::XRange;
 
 #[derive(Debug)]
 pub enum Command {
@@ -44,6 +46,7 @@ pub enum Command {
     Wait(Wait),
     Type(Type),
     XAdd(XAdd),
+    XRange(XRange),
     Unknown(Unknown),
 }
 
@@ -64,6 +67,7 @@ impl Command {
             "wait" => Command::Wait(Wait::parse_frame(&mut parse)?),
             "type" => Command::Type(Type::parse_frame(&mut parse)?),
             "xadd" => Command::XAdd(XAdd::parse_frame(&mut parse)?),
+            "xrange" => Command::XRange(XRange::parse_frame(&mut parse)?),
             "config" => {
                 let sub_command_string = parse.next_string()?.to_lowercase();
                 match &sub_command_string[..] {
@@ -103,6 +107,8 @@ impl Command {
             Wait(cmd) => cmd.apply(conn, replica_state).await,
             Type(cmd) => cmd.apply(db, conn).await,
             XAdd(cmd) => cmd.apply(db, conn).await,
+            XRange(cmd) => cmd.apply(db, conn).await,
+
             Unknown(cmd) => cmd.apply(conn).await,
         }
     }

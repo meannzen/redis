@@ -26,6 +26,13 @@ impl Stream {
         id
     }
 
+    pub fn xrange(&self, start: StreamId, end: StreamId) -> BTreeMap<StreamId, Fields> {
+        self.entries
+            .range(start..=end)
+            .map(|(id, fields)| (id.clone(), fields.clone()))
+            .collect()
+    }
+
     pub fn last_id(&self) -> Option<StreamId> {
         self.entries.keys().last().cloned()
     }

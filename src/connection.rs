@@ -190,7 +190,10 @@ impl Connection {
                 self.stream.write_all(msg.as_bytes()).await?;
                 self.stream.write_all(b"\r\n").await?;
             }
-            Frame::Array(_) => unreachable!(),
+            Frame::Array(parts) => {
+                let bytes = Frame::Array(parts.clone()).to_vec();
+                self.stream.write_all(&bytes).await?;
+            }
         }
 
         Ok(())

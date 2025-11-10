@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeSet, HashMap},
+    collections::{BTreeMap, BTreeSet, HashMap},
     sync::{Arc, Mutex},
 };
 
@@ -153,6 +153,17 @@ impl Db {
         }
         let stream_id = stream.xadd(id, fields);
         Ok(stream_id.to_string())
+    }
+
+    pub fn xrange(
+        &self,
+        key: String,
+        start: StreamId,
+        end: StreamId,
+    ) -> Option<BTreeMap<StreamId, Fields>> {
+        let state = self.shared.state.lock().unwrap();
+        let stream = state.stream.get(&key)?;
+        Some(stream.xrange(start, end))
     }
 
     pub fn set(&self, key: String, value: Bytes, expire: Option<Duration>) {
