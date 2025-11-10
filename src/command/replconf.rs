@@ -1,10 +1,6 @@
 use bytes::Bytes;
 
-use crate::{
-    parse::Parse,
-    server::{ReplicaAck, ReplicaOffset},
-    Connection, Frame,
-};
+use crate::{parse::Parse, server::ReplicaState, Connection, Frame};
 
 #[derive(Debug)]
 pub struct ReplConf {
@@ -38,14 +34,13 @@ impl ReplConf {
     pub async fn apply(
         self,
         conn: &mut Connection,
-        replica_offset: &ReplicaOffset,
-        acked: &ReplicaAck,
+        replica_state: &ReplicaState,
     ) -> crate::Result<()> {
         if self.args == "ACK" {
             let rep_offset: u64 = self.option.parse()?;
             // Load and update the tracked replica offset (kept as the maximum seen).
-            let mut off_guard = replica_offset.lock().unwrap();
-            let mut ack_guard = acked.lock().unwrap();
+            let mut off_guard = replica_state.offset.lock().unwrap();
+            let mut ack_guard = replica_state.acked.lock().unwrap();
 
             // If this replica reports an offset >= the tracked offset at the time of the write,
             // count it as an acknowledgement.

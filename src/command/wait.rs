@@ -1,8 +1,4 @@
-use crate::{
-    parse::Parse,
-    server::{ReplicaAck, ReplicaConnection, ReplicaOffset},
-    Connection, Frame,
-};
+use crate::{parse::Parse, server::ReplicaState, Connection, Frame};
 use bytes::Bytes;
 use std::time::{Duration, Instant};
 use tokio::time::sleep;
@@ -27,14 +23,12 @@ impl Wait {
     pub async fn apply(
         self,
         conn: &mut Connection,
-        replica_connection: &ReplicaConnection,
-        _replica_offset: &ReplicaOffset,
-        acked: &ReplicaAck,
+        replica_state: &ReplicaState,
     ) -> crate::Result<()> {
-        *acked.lock().unwrap() = 0;
+        *replica_state.acked.lock().unwrap() = 0;
 
         let replicas: Vec<Connection> = {
-            let guard = replica_connection.lock().unwrap();
+            let guard = replica_state.connections.lock().unwrap();
             guard.iter().filter_map(|c| c.try_clone().ok()).collect()
         };
 
@@ -60,7 +54,7 @@ impl Wait {
         while Instant::now() < deadline {
             sleep(Duration::from_millis(5)).await;
 
-            let current_acked = *acked.lock().unwrap();
+            let current_acked = *replica_state.acked.lock().unwrap();
 
             if current_acked >= self.numreplicas {
                 conn.write_frame(&Frame::Integer(current_acked)).await?;
@@ -68,7 +62,7 @@ impl Wait {
             }
         }
 
-        let mut final_count = *acked.lock().unwrap();
+        let mut final_count = *replica_state.acked.lock().unwrap();
         if final_count == 0 {
             final_count = count_replica;
         }

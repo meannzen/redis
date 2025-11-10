@@ -11,9 +11,28 @@ use tokio::{
 };
 const MAX_CONNECTIONS: usize = 250;
 
-pub type ReplicaConnection = Arc<Mutex<Vec<Connection>>>;
-pub type ReplicaOffset = Arc<Mutex<u64>>;
-pub type ReplicaAck = Arc<Mutex<u64>>;
+#[derive(Debug, Clone)]
+pub struct ReplicaState {
+    pub connections: Arc<Mutex<Vec<Connection>>>,
+    pub offset: Arc<Mutex<u64>>,
+    pub acked: Arc<Mutex<u64>>,
+}
+
+impl Default for ReplicaState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl ReplicaState {
+    pub fn new() -> Self {
+        Self {
+            connections: Arc::new(Mutex::new(Vec::new())),
+            offset: Arc::new(Mutex::new(0)),
+            acked: Arc::new(Mutex::new(0)),
+        }
+    }
+}
 
 use crate::{
     database::parser::RdbParse,
@@ -29,9 +48,7 @@ struct Listener {
     limit_connection: Arc<Semaphore>,
     notify_shutdown: broadcast::Sender<()>,
     shutdown_complete_tx: mpsc::Sender<()>,
-    replica_connection: ReplicaConnection,
-    replica_offset: ReplicaOffset,
-    acked: ReplicaAck,
+    replica_state: ReplicaState,
 }
 
 impl Listener {
@@ -46,9 +63,7 @@ impl Listener {
                 connection: Connection::new(socket),
                 shutdown: Shutdown::new(self.notify_shutdown.subscribe()),
                 _shutdown_complete: self.shutdown_complete_tx.clone(),
-                replica_connection: self.replica_connection.clone(),
-                replica_offset: self.replica_offset.clone(),
-                acked: self.acked.clone(),
+                replica_state: self.replica_state.clone(),
             };
 
             tokio::spawn(async move {
@@ -102,9 +117,7 @@ pub async fn run(listener: TcpListener, config: Cli, shutdown: impl Future) {
         notify_shutdown,
         shutdown_complete_tx,
         config: Arc::new(config),
-        replica_connection: Arc::new(Mutex::new(Vec::new())),
-        replica_offset: Arc::new(Mutex::new(0)),
-        acked: Arc::new(Mutex::new(0)),
+        replica_state: ReplicaState::new(),
     };
 
     tokio::select! {
@@ -136,9 +149,7 @@ struct Handler {
     connection: Connection,
     shutdown: Shutdown,
     _shutdown_complete: mpsc::Sender<()>,
-    replica_connection: ReplicaConnection,
-    replica_offset: ReplicaOffset,
-    acked: ReplicaAck,
+    replica_state: ReplicaState,
 }
 
 impl Handler {
@@ -158,12 +169,9 @@ impl Handler {
 
             let command = Command::from_frame(frame.clone())?;
             let is_writer = command.is_writer();
-            let connection = Arc::clone(&self.replica_connection);
             command
                 .apply(
-                    &self.acked,
-                    &self.replica_offset,
-                    &self.replica_connection,
+                    &self.replica_state,
                     &self.db,
                     &self.config,
                     &mut self.connection,
@@ -174,17 +182,21 @@ impl Handler {
             if is_writer {
                 let frame_len = frame.clone().to_vec().len() as u64;
                 {
-                    let mut off_guard = self.replica_offset.lock().unwrap_or_else(|poison| {
+                    let mut off_guard = self.replica_state.offset.lock().unwrap_or_else(|poison| {
                         eprintln!("Replica lock poisoned: {:?}", poison);
                         std::process::exit(1);
                     });
                     *off_guard += frame_len;
                 }
                 let replicas: Vec<Connection> = {
-                    let guard = connection.lock().unwrap_or_else(|poison| {
-                        eprintln!("Replica lock poisoned: {:?}", poison);
-                        std::process::exit(1);
-                    });
+                    let guard = self
+                        .replica_state
+                        .connections
+                        .lock()
+                        .unwrap_or_else(|poison| {
+                            eprintln!("Replica lock poisoned: {:?}", poison);
+                            std::process::exit(1);
+                        });
                     guard
                         .iter()
                         .filter_map(|stream| stream.try_clone().ok())
