@@ -119,7 +119,19 @@ impl Db {
         let mut state = self.shared.state.lock().unwrap();
         let stream = state.stream.entry(key).or_default();
 
-        let id = if id_str.ends_with("-*") {
+        let id = if id_str == "*" {
+            let mut ms = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_millis() as u64;
+
+            if let Some(last_id) = stream.last_id() {
+                if ms < last_id.ms {
+                    ms = last_id.ms;
+                }
+            }
+            stream.generate_id(ms)
+        } else if id_str.ends_with("-*") {
             let mut parts = id_str.splitn(2, '-');
             let ms_str = parts.next().unwrap();
             let ms = ms_str

@@ -4,8 +4,8 @@ use bytes::Bytes;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord)]
 pub struct StreamId {
-    ms: u64,
-    seq: u64,
+    pub ms: u64,
+    pub seq: u64,
 }
 
 impl StreamId {
@@ -69,15 +69,15 @@ impl std::fmt::Display for StreamId {
 pub enum ParseStreamIdError {
     MissingPart,
     EmptyPart,
-    InvalideNumber(ParseIntError),
+    InvalidNumber(ParseIntError),
 }
 
 impl std::fmt::Display for ParseStreamIdError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::MissingPart => write!(f, "invalid stream id: missing '-' seperator or part"),
+            Self::MissingPart => write!(f, "invalid stream id: missing '-' separator or part"),
             Self::EmptyPart => write!(f, "invalid stream id: empty millisecorn or sequence"),
-            Self::InvalideNumber(e) => write!(f, "invalid number value in steam id: {}", e),
+            Self::InvalidNumber(e) => write!(f, "invalid number value in steam id: {}", e),
         }
     }
 }
@@ -85,7 +85,7 @@ impl std::fmt::Display for ParseStreamIdError {
 impl std::error::Error for ParseStreamIdError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::InvalideNumber(e) => Some(e),
+            Self::InvalidNumber(e) => Some(e),
             _ => None,
         }
     }
@@ -93,7 +93,7 @@ impl std::error::Error for ParseStreamIdError {
 
 impl From<ParseIntError> for ParseStreamIdError {
     fn from(value: ParseIntError) -> Self {
-        ParseStreamIdError::InvalideNumber(value)
+        ParseStreamIdError::InvalidNumber(value)
     }
 }
 
