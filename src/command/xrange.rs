@@ -24,7 +24,7 @@ impl XRange {
         } else {
             StreamId::from_str(&start_str)?
         };
-        let end = if start_str == "+" {
+        let end = if end_str == "+" {
             StreamId {
                 ms: u64::MAX,
                 seq: u64::MAX,
