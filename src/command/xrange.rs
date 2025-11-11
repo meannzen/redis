@@ -19,8 +19,19 @@ impl XRange {
         let key = parse.next_string()?;
         let start_str = parse.next_string()?;
         let end_str = parse.next_string()?;
-        let start = StreamId::from_str(&start_str)?;
-        let end = StreamId::from_str(&end_str)?;
+        let start = if start_str == "-" {
+            StreamId { ms: 0, seq: 0 }
+        } else {
+            StreamId::from_str(&start_str)?
+        };
+        let end = if start_str == "+" {
+            StreamId {
+                ms: u64::MAX,
+                seq: u64::MAX,
+            }
+        } else {
+            StreamId::from_str(&end_str)?
+        };
 
         Ok(XRange { start, end, key })
     }
