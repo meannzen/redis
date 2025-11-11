@@ -1,4 +1,3 @@
-use crate::command::ping::Ping;
 use crate::parse::Parse;
 use crate::server::{ReplicaState, Shutdown};
 use crate::store::Db;
@@ -18,11 +17,13 @@ pub mod unknown;
 pub mod wait;
 pub mod xadd;
 pub mod xrange;
+pub mod xread;
 pub use config::Config;
 pub use echo::Echo;
 pub use get::Get;
 pub use info::Info;
 pub use key::Keys;
+pub use ping::Ping;
 pub use psync::PSync;
 pub use replconf::ReplConf;
 pub use set::Set;
@@ -31,6 +32,7 @@ pub use unknown::Unknown;
 pub use wait::Wait;
 pub use xadd::XAdd;
 pub use xrange::XRange;
+pub use xread::XRead;
 
 #[derive(Debug)]
 pub enum Command {
@@ -47,6 +49,7 @@ pub enum Command {
     Type(Type),
     XAdd(XAdd),
     XRange(XRange),
+    XRead(XRead),
     Unknown(Unknown),
 }
 
@@ -68,6 +71,13 @@ impl Command {
             "type" => Command::Type(Type::parse_frame(&mut parse)?),
             "xadd" => Command::XAdd(XAdd::parse_frame(&mut parse)?),
             "xrange" => Command::XRange(XRange::parse_frame(&mut parse)?),
+            "xread" => {
+                if parse.next_string()?.to_lowercase() == "streams" {
+                    Command::XRead(XRead::parse_frame(&mut parse)?)
+                } else {
+                    Command::Unknown(Unknown::new(command_string))
+                }
+            }
             "config" => {
                 let sub_command_string = parse.next_string()?.to_lowercase();
                 match &sub_command_string[..] {
@@ -108,7 +118,7 @@ impl Command {
             Type(cmd) => cmd.apply(db, conn).await,
             XAdd(cmd) => cmd.apply(db, conn).await,
             XRange(cmd) => cmd.apply(db, conn).await,
-
+            XRead(cmd) => cmd.apply(db, conn).await,
             Unknown(cmd) => cmd.apply(conn).await,
         }
     }

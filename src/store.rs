@@ -165,6 +165,11 @@ impl Db {
         let stream = state.stream.get(&key)?;
         Some(stream.xrange(start, end))
     }
+    pub fn xread(&self, key: String, id: StreamId) -> Option<BTreeMap<StreamId, Fields>> {
+        let state = self.shared.state.lock().unwrap();
+        let stream = state.stream.get(&key)?;
+        Some(stream.xread(id))
+    }
 
     pub fn set(&self, key: String, value: Bytes, expire: Option<Duration>) {
         let mut state = self.shared.state.lock().unwrap();

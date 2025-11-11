@@ -32,6 +32,12 @@ impl Stream {
             .map(|(id, fields)| (id.clone(), fields.clone()))
             .collect()
     }
+    pub fn xread(&self, id: StreamId) -> BTreeMap<StreamId, Fields> {
+        self.entries
+            .range(id..)
+            .map(|(id, fields)| (id.clone(), fields.clone()))
+            .collect()
+    }
 
     pub fn last_id(&self) -> Option<StreamId> {
         self.entries.keys().last().cloned()
