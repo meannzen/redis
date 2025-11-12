@@ -1,5 +1,5 @@
 use crate::parse::Parse;
-use crate::server::{ReplicaState, Shutdown};
+use crate::server::{ReplicaState, Shutdown, TransactionState};
 use crate::store::Db;
 use crate::{Connection, Frame};
 
@@ -103,6 +103,7 @@ impl Command {
 
     pub async fn apply(
         self,
+        transaction_state: &TransactionState,
         replica_state: &ReplicaState,
         db: &Db,
         config: &crate::server_cli::Cli,
@@ -126,8 +127,8 @@ impl Command {
             XRange(cmd) => cmd.apply(db, conn).await,
             XRead(cmd) => cmd.apply(db, conn).await,
             Ince(cmd) => cmd.apply(db, conn).await,
-            Muiti(cmd) => cmd.apply(conn).await,
-            Exec(cmd) => cmd.apply(conn).await,
+            Muiti(cmd) => cmd.apply(transaction_state, conn).await,
+            Exec(cmd) => cmd.apply(transaction_state, conn).await,
             Unknown(cmd) => cmd.apply(conn).await,
         }
     }

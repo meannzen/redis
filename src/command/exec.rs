@@ -1,4 +1,4 @@
-use crate::{parse::Parse, Connection};
+use crate::{parse::Parse, server::TransactionState, Connection, Frame};
 
 #[derive(Debug)]
 pub struct Exec;
@@ -9,9 +9,19 @@ impl Exec {
         Ok(Exec)
     }
 
-    pub async fn apply(self, conn: &mut Connection) -> crate::Result<()> {
-        conn.write_frame(&crate::Frame::Error("ERR EXEC without MULTI".to_string()))
-            .await?;
+    pub async fn apply(self, trans: &TransactionState, conn: &mut Connection) -> crate::Result<()> {
+        let frame;
+        {
+            let mut multi = trans.multi.lock().unwrap();
+            if *multi {
+                frame = Frame::array();
+                *multi = false;
+            } else {
+                frame = Frame::Error("ERR EXEC without MULTI".to_string());
+            }
+        }
+
+        conn.write_frame(&frame).await?;
         Ok(())
     }
 }

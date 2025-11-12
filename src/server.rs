@@ -17,6 +17,18 @@ pub struct ReplicaState {
     pub offset: Arc<Mutex<u64>>,
     pub acked: Arc<Mutex<u64>>,
 }
+#[derive(Debug, Clone)]
+pub struct TransactionState {
+    pub multi: Arc<Mutex<bool>>,
+}
+
+impl Default for TransactionState {
+    fn default() -> Self {
+        Self {
+            multi: Arc::new(Mutex::new(false)),
+        }
+    }
+}
 
 impl Default for ReplicaState {
     fn default() -> Self {
@@ -49,6 +61,7 @@ struct Listener {
     notify_shutdown: broadcast::Sender<()>,
     shutdown_complete_tx: mpsc::Sender<()>,
     replica_state: ReplicaState,
+    transaction_state: TransactionState,
 }
 
 impl Listener {
@@ -64,6 +77,7 @@ impl Listener {
                 shutdown: Shutdown::new(self.notify_shutdown.subscribe()),
                 _shutdown_complete: self.shutdown_complete_tx.clone(),
                 replica_state: self.replica_state.clone(),
+                transaction_state: self.transaction_state.clone(),
             };
 
             tokio::spawn(async move {
@@ -118,6 +132,7 @@ pub async fn run(listener: TcpListener, config: Cli, shutdown: impl Future) {
         shutdown_complete_tx,
         config: Arc::new(config),
         replica_state: ReplicaState::new(),
+        transaction_state: TransactionState::default(),
     };
 
     tokio::select! {
@@ -150,6 +165,7 @@ struct Handler {
     shutdown: Shutdown,
     _shutdown_complete: mpsc::Sender<()>,
     replica_state: ReplicaState,
+    transaction_state: TransactionState,
 }
 
 impl Handler {
@@ -171,6 +187,7 @@ impl Handler {
             let is_writer = command.is_writer();
             command
                 .apply(
+                    &self.transaction_state,
                     &self.replica_state,
                     &self.db,
                     &self.config,
