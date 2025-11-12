@@ -71,13 +71,7 @@ impl Command {
             "type" => Command::Type(Type::parse_frame(&mut parse)?),
             "xadd" => Command::XAdd(XAdd::parse_frame(&mut parse)?),
             "xrange" => Command::XRange(XRange::parse_frame(&mut parse)?),
-            "xread" => {
-                if parse.next_string()?.to_lowercase() == "streams" {
-                    Command::XRead(XRead::parse_frame(&mut parse)?)
-                } else {
-                    Command::Unknown(Unknown::new(command_string))
-                }
-            }
+            "xread" => Command::XRead(XRead::parse_frame(&mut parse)?),
             "config" => {
                 let sub_command_string = parse.next_string()?.to_lowercase();
                 match &sub_command_string[..] {

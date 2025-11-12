@@ -151,6 +151,11 @@ impl Connection {
         self.stream.flush().await
     }
 
+    pub async fn write_null_array(&mut self) -> io::Result<()> {
+        self.stream.write_all(b"*-1\r\n").await?;
+        self.stream.flush().await
+    }
+
     pub async fn write_content_file(&mut self, content: Vec<u8>) -> io::Result<()> {
         self.stream.write_u8(b'$').await?;
         self.stream

@@ -1,6 +1,7 @@
-use std::str::FromStr;
+use std::{str::FromStr, time::Duration};
 
 use bytes::Bytes;
+use tokio::time::sleep;
 
 use crate::{parse::Parse, store::Db, stream::StreamId, Connection, Frame};
 
@@ -8,16 +9,32 @@ use crate::{parse::Parse, store::Db, stream::StreamId, Connection, Frame};
 pub struct XRead {
     keys: Vec<String>,
     ids: Vec<StreamId>,
+    timeout: Option<Duration>,
 }
 
 impl XRead {
     pub fn new(keys: Vec<String>, ids: Vec<StreamId>) -> XRead {
-        XRead { keys, ids }
+        XRead {
+            keys,
+            ids,
+            timeout: None,
+        }
     }
 
     pub fn parse_frame(parse: &mut Parse) -> crate::Result<XRead> {
         let mut keys = vec![];
         let mut ids = vec![];
+        let mut timeout = None;
+        let mut cmd_str = parse.next_string()?.to_lowercase();
+        if cmd_str == "block" {
+            timeout = Some(Duration::from_millis(parse.next_string()?.parse::<u64>()?));
+            cmd_str = parse.next_string()?.to_lowercase();
+        }
+
+        if cmd_str != "streams" {
+            return Err(format!("Unknow command: {cmd_str}").into());
+        }
+
         while let Ok(s) = parse.next_string() {
             if let Ok(id) = StreamId::from_str(&s) {
                 ids.push(id);
@@ -26,54 +43,89 @@ impl XRead {
             }
         }
 
-        Ok(XRead { keys, ids })
+        Ok(XRead { keys, ids, timeout })
     }
 
     pub async fn apply(self, db: &Db, conn: &mut Connection) -> crate::Result<()> {
-        let mut final_out = Frame::array();
+        let deadline = self.timeout.map(|d| tokio::time::Instant::now() + d);
 
-        for (key, id) in self.keys.into_iter().zip(self.ids.into_iter()) {
-            let mut key_wrapper = Frame::array();
+        loop {
+            let mut final_out = Frame::array();
+            let mut has_entries = false;
 
-            if let Frame::Array(ref mut wrapper_vec) = key_wrapper {
-                wrapper_vec.push(Frame::Bulk(Bytes::from(key.clone())));
-            }
+            for (key, id) in self.keys.iter().zip(self.ids.iter()) {
+                let mut key_wrapper = Frame::array();
 
-            let mut entries_array = Frame::array();
+                if let Frame::Array(ref mut wrapper_vec) = key_wrapper {
+                    wrapper_vec.push(Frame::Bulk(Bytes::from(key.clone())));
+                }
 
-            if let Some(entries) = db.xread(key, id) {
-                for (entry_id, fields) in entries.into_iter() {
-                    let mut entry = Frame::array();
+                let mut entries_array = Frame::array();
 
-                    if let Frame::Array(ref mut entry_vec) = entry {
-                        entry_vec.push(Frame::Bulk(Bytes::from(entry_id.to_string())));
+                if let Some(entries) = db.xread(key.clone(), id.clone()) {
+                    let filtered_entries: Vec<_> = entries
+                        .into_iter()
+                        .filter(|(entry_id, _)| entry_id > id)
+                        .collect();
 
-                        let mut fields_arr = Frame::array();
-                        if let Frame::Array(ref mut fields_vec) = fields_arr {
-                            for (name, value) in fields.into_iter() {
-                                fields_vec.push(Frame::Bulk(Bytes::from(name)));
-                                fields_vec.push(Frame::Bulk(value));
+                    if !filtered_entries.is_empty() {
+                        has_entries = true;
+                    }
+
+                    for (entry_id, fields) in filtered_entries.into_iter() {
+                        let mut entry = Frame::array();
+
+                        if let Frame::Array(ref mut entry_vec) = entry {
+                            entry_vec.push(Frame::Bulk(Bytes::from(entry_id.to_string())));
+
+                            let mut fields_arr = Frame::array();
+                            if let Frame::Array(ref mut fields_vec) = fields_arr {
+                                for (name, value) in fields.into_iter() {
+                                    fields_vec.push(Frame::Bulk(Bytes::from(name)));
+                                    fields_vec.push(Frame::Bulk(value));
+                                }
                             }
+                            entry_vec.push(fields_arr);
                         }
-                        entry_vec.push(fields_arr);
-                    }
 
-                    if let Frame::Array(ref mut entries_vec) = entries_array {
-                        entries_vec.push(entry);
+                        if let Frame::Array(ref mut entries_vec) = entries_array {
+                            entries_vec.push(entry);
+                        }
                     }
+                }
+
+                if let Frame::Array(ref mut wrapper_vec) = key_wrapper {
+                    wrapper_vec.push(entries_array);
+                }
+
+                if let Frame::Array(ref mut final_vec) = final_out {
+                    final_vec.push(key_wrapper);
                 }
             }
 
-            if let Frame::Array(ref mut wrapper_vec) = key_wrapper {
-                wrapper_vec.push(entries_array);
+            if has_entries {
+                conn.write_frame(&final_out).await?;
+                return Ok(());
             }
 
-            if let Frame::Array(ref mut final_vec) = final_out {
-                final_vec.push(key_wrapper);
+            if self.timeout.is_none() || self.timeout == Some(Duration::from_millis(0)) {
+                conn.write_frame(&Frame::array()).await?;
+                return Ok(());
+            }
+
+            let time_remaining =
+                deadline.map(|d| d.saturating_duration_since(tokio::time::Instant::now()));
+
+            match time_remaining {
+                Some(remaining) if remaining > Duration::from_millis(0) => {
+                    let wait_duration = remaining.min(Duration::from_millis(100));
+                    sleep(wait_duration).await;
+                }
+                _ => {
+                    conn.write_null_array().await?;
+                    return Ok(());
+                }
             }
         }
-
-        conn.write_frame(&final_out).await?;
-        Ok(())
     }
 }
