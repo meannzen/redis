@@ -115,6 +115,12 @@ impl Db {
         state.stream.contains_key(key)
     }
 
+    pub fn get_last_stream_id(&self, key: &str) -> Option<StreamId> {
+        let mut state = self.shared.state.lock().unwrap();
+        let stream = state.stream.entry(key.to_string()).or_default();
+        stream.last_id()
+    }
+
     pub fn xadd(&self, key: String, id_str: String, fields: Fields) -> Result<String, String> {
         let mut state = self.shared.state.lock().unwrap();
         let stream = state.stream.entry(key).or_default();

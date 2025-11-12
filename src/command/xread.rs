@@ -36,9 +36,15 @@ impl XRead {
         }
 
         while let Ok(s) = parse.next_string() {
-            if let Ok(id) = StreamId::from_str(&s) {
+            if s == "$" {
+                ids.push(StreamId {
+                    ms: u64::MAX,
+                    seq: u64::MAX,
+                });
+            } else if let Ok(id) = StreamId::from_str(&s) {
                 ids.push(id);
             } else {
+                dbg!(&s);
                 keys.push(s);
             }
         }
@@ -47,7 +53,21 @@ impl XRead {
     }
 
     pub async fn apply(self, db: &Db, conn: &mut Connection) -> crate::Result<()> {
-        let deadline = self
+        let mut self_mut = self;
+
+        let mut actual_ids: Vec<StreamId> = Vec::with_capacity(self_mut.ids.len());
+
+        for (key, id) in self_mut.keys.iter().zip(self_mut.ids.iter()) {
+            if id.ms == u64::MAX && id.seq == u64::MAX {
+                let last_id = db.get_last_stream_id(key);
+                actual_ids.push(last_id.unwrap_or_else(|| StreamId { ms: 0, seq: 0 }));
+            } else {
+                actual_ids.push(id.clone());
+            }
+        }
+        self_mut.ids = actual_ids;
+
+        let deadline = self_mut
             .timeout
             .filter(|&d| d > Duration::from_millis(0))
             .map(|d| tokio::time::Instant::now() + d);
@@ -56,7 +76,7 @@ impl XRead {
             let mut final_out = Frame::array();
             let mut has_entries = false;
 
-            for (key, id) in self.keys.iter().zip(self.ids.iter()) {
+            for (key, id) in self_mut.keys.iter().zip(self_mut.ids.iter()) {
                 let mut key_wrapper = Frame::array();
 
                 if let Frame::Array(ref mut wrapper_vec) = key_wrapper {
@@ -111,8 +131,8 @@ impl XRead {
                 return Ok(());
             }
 
-            if self.timeout.is_none()
-                || (self
+            if self_mut.timeout.is_none()
+                || (self_mut
                     .timeout
                     .as_ref()
                     .is_some_and(|d| d > &Duration::from_millis(0) && deadline.is_none()))
@@ -121,7 +141,7 @@ impl XRead {
                 return Ok(());
             }
 
-            if self.timeout == Some(Duration::from_millis(0)) {
+            if self_mut.timeout == Some(Duration::from_millis(0)) {
                 sleep(Duration::from_secs(1)).await;
                 continue;
             }
