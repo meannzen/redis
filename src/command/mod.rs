@@ -9,6 +9,7 @@ pub mod get;
 pub mod incr;
 pub mod info;
 pub mod key;
+pub mod multi;
 pub mod ping;
 pub mod psync;
 pub mod replconf;
@@ -25,6 +26,7 @@ pub use get::Get;
 pub use incr::Incr;
 pub use info::Info;
 pub use key::Keys;
+pub use multi::Multi;
 pub use ping::Ping;
 pub use psync::PSync;
 pub use replconf::ReplConf;
@@ -53,6 +55,7 @@ pub enum Command {
     XRange(XRange),
     XRead(XRead),
     Ince(Incr),
+    Muiti(Multi),
     Unknown(Unknown),
 }
 
@@ -76,6 +79,7 @@ impl Command {
             "xrange" => Command::XRange(XRange::parse_frame(&mut parse)?),
             "xread" => Command::XRead(XRead::parse_frame(&mut parse)?),
             "incr" => Command::Ince(Incr::parse_frame(&mut parse)?),
+            "multi" => Command::Muiti(Multi::parse_frame(&mut parse)?),
             "config" => {
                 let sub_command_string = parse.next_string()?.to_lowercase();
                 match &sub_command_string[..] {
@@ -118,6 +122,7 @@ impl Command {
             XRange(cmd) => cmd.apply(db, conn).await,
             XRead(cmd) => cmd.apply(db, conn).await,
             Ince(cmd) => cmd.apply(db, conn).await,
+            Muiti(cmd) => cmd.apply(conn).await,
             Unknown(cmd) => cmd.apply(conn).await,
         }
     }
