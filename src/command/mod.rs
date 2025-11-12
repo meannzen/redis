@@ -5,6 +5,7 @@ use crate::{Connection, Frame};
 
 pub mod config;
 pub mod echo;
+pub mod exec;
 pub mod get;
 pub mod incr;
 pub mod info;
@@ -22,6 +23,7 @@ pub mod xrange;
 pub mod xread;
 pub use config::Config;
 pub use echo::Echo;
+pub use exec::Exec;
 pub use get::Get;
 pub use incr::Incr;
 pub use info::Info;
@@ -56,6 +58,7 @@ pub enum Command {
     XRead(XRead),
     Ince(Incr),
     Muiti(Multi),
+    Exec(Exec),
     Unknown(Unknown),
 }
 
@@ -80,6 +83,7 @@ impl Command {
             "xread" => Command::XRead(XRead::parse_frame(&mut parse)?),
             "incr" => Command::Ince(Incr::parse_frame(&mut parse)?),
             "multi" => Command::Muiti(Multi::parse_frame(&mut parse)?),
+            "exec" => Command::Exec(Exec::parse_frame(&mut parse)?),
             "config" => {
                 let sub_command_string = parse.next_string()?.to_lowercase();
                 match &sub_command_string[..] {
@@ -123,6 +127,7 @@ impl Command {
             XRead(cmd) => cmd.apply(db, conn).await,
             Ince(cmd) => cmd.apply(db, conn).await,
             Muiti(cmd) => cmd.apply(conn).await,
+            Exec(cmd) => cmd.apply(conn).await,
             Unknown(cmd) => cmd.apply(conn).await,
         }
     }
