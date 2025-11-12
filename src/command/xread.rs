@@ -47,7 +47,10 @@ impl XRead {
     }
 
     pub async fn apply(self, db: &Db, conn: &mut Connection) -> crate::Result<()> {
-        let deadline = self.timeout.map(|d| tokio::time::Instant::now() + d);
+        let deadline = self
+            .timeout
+            .filter(|&d| d > Duration::from_millis(0))
+            .map(|d| tokio::time::Instant::now() + d);
 
         loop {
             let mut final_out = Frame::array();
@@ -108,9 +111,19 @@ impl XRead {
                 return Ok(());
             }
 
-            if self.timeout.is_none() || self.timeout == Some(Duration::from_millis(0)) {
-                conn.write_frame(&Frame::array()).await?;
+            if self.timeout.is_none()
+                || (self
+                    .timeout
+                    .as_ref()
+                    .is_some_and(|d| d > &Duration::from_millis(0) && deadline.is_none()))
+            {
+                conn.write_null_array().await?;
                 return Ok(());
+            }
+
+            if self.timeout == Some(Duration::from_millis(0)) {
+                sleep(Duration::from_secs(1)).await;
+                continue;
             }
 
             let time_remaining =
