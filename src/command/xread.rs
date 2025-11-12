@@ -60,7 +60,7 @@ impl XRead {
         for (key, id) in self_mut.keys.iter().zip(self_mut.ids.iter()) {
             if id.ms == u64::MAX && id.seq == u64::MAX {
                 let last_id = db.get_last_stream_id(key);
-                actual_ids.push(last_id.unwrap_or_else(|| StreamId { ms: 0, seq: 0 }));
+                actual_ids.push(last_id.unwrap_or(StreamId { ms: 0, seq: 0 }));
             } else {
                 actual_ids.push(id.clone());
             }

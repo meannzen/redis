@@ -6,6 +6,7 @@ use crate::{Connection, Frame};
 pub mod config;
 pub mod echo;
 pub mod get;
+pub mod incr;
 pub mod info;
 pub mod key;
 pub mod ping;
@@ -21,6 +22,7 @@ pub mod xread;
 pub use config::Config;
 pub use echo::Echo;
 pub use get::Get;
+pub use incr::Incr;
 pub use info::Info;
 pub use key::Keys;
 pub use ping::Ping;
@@ -50,6 +52,7 @@ pub enum Command {
     XAdd(XAdd),
     XRange(XRange),
     XRead(XRead),
+    Ince(Incr),
     Unknown(Unknown),
 }
 
@@ -72,6 +75,7 @@ impl Command {
             "xadd" => Command::XAdd(XAdd::parse_frame(&mut parse)?),
             "xrange" => Command::XRange(XRange::parse_frame(&mut parse)?),
             "xread" => Command::XRead(XRead::parse_frame(&mut parse)?),
+            "incr" => Command::Ince(Incr::parse_frame(&mut parse)?),
             "config" => {
                 let sub_command_string = parse.next_string()?.to_lowercase();
                 match &sub_command_string[..] {
@@ -113,6 +117,7 @@ impl Command {
             XAdd(cmd) => cmd.apply(db, conn).await,
             XRange(cmd) => cmd.apply(db, conn).await,
             XRead(cmd) => cmd.apply(db, conn).await,
+            Ince(cmd) => cmd.apply(db, conn).await,
             Unknown(cmd) => cmd.apply(conn).await,
         }
     }
