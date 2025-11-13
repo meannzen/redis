@@ -1,4 +1,5 @@
 use std::{
+    collections::VecDeque,
     future::Future,
     path::Path,
     sync::{Arc, Mutex},
@@ -17,15 +18,24 @@ pub struct ReplicaState {
     pub offset: Arc<Mutex<u64>>,
     pub acked: Arc<Mutex<u64>>,
 }
+
+#[derive(Debug)]
+pub enum QueueCommand {
+    SET(Set),
+    INCR(Incr),
+}
+
 #[derive(Debug, Clone)]
 pub struct TransactionState {
     pub multi: Arc<Mutex<bool>>,
+    pub queue_command: Arc<Mutex<VecDeque<QueueCommand>>>,
 }
 
 impl Default for TransactionState {
     fn default() -> Self {
         Self {
             multi: Arc::new(Mutex::new(false)),
+            queue_command: Arc::new(Mutex::new(VecDeque::new())),
         }
     }
 }
@@ -47,6 +57,7 @@ impl ReplicaState {
 }
 
 use crate::{
+    command::{Incr, Set},
     database::parser::RdbParse,
     server_cli::Cli,
     store::{Db, Store},

@@ -2,9 +2,14 @@ use std::time::Duration;
 
 use bytes::Bytes;
 
-use crate::{parse::Parse, store::Db, Connection, Frame};
+use crate::{
+    parse::Parse,
+    server::{QueueCommand, TransactionState},
+    store::Db,
+    Connection, Frame,
+};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Set {
     key: String,
     value: Bytes,
@@ -45,10 +50,28 @@ impl Set {
         Ok(Set { key, value, expire })
     }
 
-    pub async fn apply(self, db: &Db, dst: &mut Connection) -> crate::Result<()> {
-        db.set(self.key, self.value, self.expire);
-        let response = Frame::Simple("OK".to_string());
-        dst.write_frame(&response).await?;
+    pub async fn apply(
+        self,
+        db: &Db,
+        conn: &mut Connection,
+        trans: &TransactionState,
+    ) -> crate::Result<()> {
+        let mut response_str = "OK";
+        let mut is_queue = false;
+        {
+            let multi = trans.multi.lock().unwrap();
+            if *multi {
+                is_queue = true;
+                let mut queue_command = trans.queue_command.lock().unwrap();
+                response_str = "QUEUED";
+                queue_command.push_back(QueueCommand::SET(self.clone()));
+            }
+        }
+        if !is_queue {
+            db.set(self.key, self.value, self.expire);
+        }
+        let response = Frame::Simple(response_str.to_string());
+        conn.write_frame(&response).await?;
         Ok(())
     }
 
