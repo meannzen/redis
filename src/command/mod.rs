@@ -4,6 +4,7 @@ use crate::store::Db;
 use crate::{Connection, Frame};
 
 pub mod config;
+pub mod discard;
 pub mod echo;
 pub mod exec;
 pub mod get;
@@ -22,6 +23,7 @@ pub mod xadd;
 pub mod xrange;
 pub mod xread;
 pub use config::Config;
+pub use discard::Discard;
 pub use echo::Echo;
 pub use exec::Exec;
 pub use get::Get;
@@ -59,6 +61,7 @@ pub enum Command {
     Ince(Incr),
     Muiti(Multi),
     Exec(Exec),
+    Discard(Discard),
     Unknown(Unknown),
 }
 
@@ -84,6 +87,7 @@ impl Command {
             "incr" => Command::Ince(Incr::parse_frame(&mut parse)?),
             "multi" => Command::Muiti(Multi::parse_frame(&mut parse)?),
             "exec" => Command::Exec(Exec::parse_frame(&mut parse)?),
+            "discard" => Command::Discard(Discard::parse_frame(&mut parse)?),
             "config" => {
                 let sub_command_string = parse.next_string()?.to_lowercase();
                 match &sub_command_string[..] {
@@ -129,6 +133,7 @@ impl Command {
             Ince(cmd) => cmd.apply(db, conn, transaction_state).await,
             Muiti(cmd) => cmd.apply(transaction_state, conn).await,
             Exec(cmd) => cmd.apply(db, transaction_state, conn).await,
+            Discard(cmd) => cmd.apply(conn, transaction_state).await,
             Unknown(cmd) => cmd.apply(conn).await,
         }
     }
