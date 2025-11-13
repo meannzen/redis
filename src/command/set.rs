@@ -29,6 +29,14 @@ impl Set {
         &self.key
     }
 
+    pub fn value(&self) -> Bytes {
+        self.value.clone()
+    }
+
+    pub fn expire(&self) -> Option<Duration> {
+        self.expire
+    }
+
     pub fn parse_frame(parse: &mut Parse) -> crate::Result<Set> {
         let key = parse.next_string()?;
         let value = parse.next_bytes()?;

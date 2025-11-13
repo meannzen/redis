@@ -23,6 +23,7 @@ pub struct ReplicaState {
 pub enum QueueCommand {
     SET(Set),
     INCR(Incr),
+    GET(Get),
 }
 
 #[derive(Debug, Clone)]
@@ -57,7 +58,7 @@ impl ReplicaState {
 }
 
 use crate::{
-    command::{Incr, Set},
+    command::{Get, Incr, Set},
     database::parser::RdbParse,
     server_cli::Cli,
     store::{Db, Store},
@@ -72,7 +73,6 @@ struct Listener {
     notify_shutdown: broadcast::Sender<()>,
     shutdown_complete_tx: mpsc::Sender<()>,
     replica_state: ReplicaState,
-    transaction_state: TransactionState,
 }
 
 impl Listener {
@@ -88,7 +88,7 @@ impl Listener {
                 shutdown: Shutdown::new(self.notify_shutdown.subscribe()),
                 _shutdown_complete: self.shutdown_complete_tx.clone(),
                 replica_state: self.replica_state.clone(),
-                transaction_state: self.transaction_state.clone(),
+                transaction_state: TransactionState::default(),
             };
 
             tokio::spawn(async move {
@@ -143,7 +143,6 @@ pub async fn run(listener: TcpListener, config: Cli, shutdown: impl Future) {
         shutdown_complete_tx,
         config: Arc::new(config),
         replica_state: ReplicaState::new(),
-        transaction_state: TransactionState::default(),
     };
 
     tokio::select! {

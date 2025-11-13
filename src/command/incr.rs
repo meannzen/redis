@@ -24,6 +24,10 @@ impl Incr {
         Ok(Incr { key })
     }
 
+    pub fn key(&self) -> &str {
+        &self.key
+    }
+
     pub async fn apply(
         self,
         db: &Db,

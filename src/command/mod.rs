@@ -114,7 +114,7 @@ impl Command {
         match self {
             Ping(cmd) => cmd.apply(conn).await,
             Echo(cmd) => cmd.apply(conn).await,
-            Get(cmd) => cmd.apply(db, conn).await,
+            Get(cmd) => cmd.apply(db, conn, transaction_state).await,
             Set(cmd) => cmd.apply(db, conn, transaction_state).await,
             Config(cmd) => cmd.apply(config, conn).await,
             Keys(cmd) => cmd.apply(db, conn).await,
@@ -128,7 +128,7 @@ impl Command {
             XRead(cmd) => cmd.apply(db, conn).await,
             Ince(cmd) => cmd.apply(db, conn, transaction_state).await,
             Muiti(cmd) => cmd.apply(transaction_state, conn).await,
-            Exec(cmd) => cmd.apply(transaction_state, conn).await,
+            Exec(cmd) => cmd.apply(db, transaction_state, conn).await,
             Unknown(cmd) => cmd.apply(conn).await,
         }
     }
