@@ -188,8 +188,9 @@ impl Db {
     pub fn rpush(&self, key: String, valuse: Vec<Bytes>) -> u64 {
         let mut state = self.shared.state.lock().unwrap();
         let list = state.list.entry(key).or_default();
+        let len = valuse.len() as u64;
         list.values.extend(valuse);
-        list.key_count += 1;
+        list.key_count += len;
         list.key_count
     }
 
