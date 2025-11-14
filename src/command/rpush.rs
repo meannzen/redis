@@ -1,16 +1,18 @@
-use crate::{parse::Parse, Connection, Frame};
+use bytes::Bytes;
+
+use crate::{parse::Parse, store::Db, Connection, Frame};
 
 #[derive(Debug)]
 pub struct RPush {
     key: String,
-    value: String,
+    values: Vec<Bytes>,
 }
 
 impl RPush {
-    pub fn new(key: impl ToString, value: impl ToString) -> RPush {
+    pub fn new(key: impl ToString) -> RPush {
         RPush {
             key: key.to_string(),
-            value: value.to_string(),
+            values: Vec::new(),
         }
     }
 
@@ -18,18 +20,18 @@ impl RPush {
         &self.key
     }
 
-    pub fn value(&self) -> &str {
-        &self.value
-    }
-
     pub fn parse_frame(parse: &mut Parse) -> crate::Result<RPush> {
         let key = parse.next_string()?;
-        let value = parse.next_string()?;
-        Ok(RPush { key, value })
+        let mut values = Vec::new();
+        while let Ok(byte) = parse.next_bytes() {
+            values.push(byte);
+        }
+        Ok(RPush { key, values })
     }
 
-    pub async fn apply(self, conn: &mut Connection) -> crate::Result<()> {
-        conn.write_frame(&Frame::Integer(1)).await?;
+    pub async fn apply(self, db: &Db, conn: &mut Connection) -> crate::Result<()> {
+        let key_count = db.rpush(self.key, self.values);
+        conn.write_frame(&Frame::Integer(key_count)).await?;
         Ok(())
     }
 }

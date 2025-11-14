@@ -138,7 +138,7 @@ impl Command {
             Muiti(cmd) => cmd.apply(transaction_state, conn).await,
             Exec(cmd) => cmd.apply(db, transaction_state, conn).await,
             Discard(cmd) => cmd.apply(conn, transaction_state).await,
-            RPush(cmd) => cmd.apply(conn).await,
+            RPush(cmd) => cmd.apply(db, conn).await,
             Unknown(cmd) => cmd.apply(conn).await,
         }
     }

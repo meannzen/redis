@@ -17,6 +17,12 @@ pub struct Store {
     pub db: Db,
 }
 
+#[derive(Debug, Default)]
+pub struct ListEntry {
+    values: Vec<Bytes>,
+    key_count: u64,
+}
+
 #[derive(Debug, Clone)]
 pub struct Db {
     shared: Arc<Shared>,
@@ -32,6 +38,7 @@ struct State {
     entries: HashMap<String, Entry>,
     expirations: BTreeSet<(Instant, String)>,
     stream: HashMap<String, Stream>,
+    list: HashMap<String, ListEntry>,
     shutdown: bool,
 }
 
@@ -70,6 +77,7 @@ impl Db {
                 entries: HashMap::new(),
                 stream: HashMap::new(),
                 expirations: BTreeSet::new(),
+                list: HashMap::new(),
                 shutdown: false,
             }),
 
@@ -175,6 +183,14 @@ impl Db {
         let state = self.shared.state.lock().unwrap();
         let stream = state.stream.get(&key)?;
         Some(stream.xread(id))
+    }
+
+    pub fn rpush(&self, key: String, valuse: Vec<Bytes>) -> u64 {
+        let mut state = self.shared.state.lock().unwrap();
+        let list = state.list.entry(key).or_default();
+        list.values.extend(valuse);
+        list.key_count += 1;
+        list.key_count
     }
 
     pub fn set(&self, key: String, value: Bytes, expire: Option<Duration>) {
