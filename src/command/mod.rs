@@ -11,6 +11,7 @@ pub mod get;
 pub mod incr;
 pub mod info;
 pub mod key;
+pub mod lrange;
 pub mod multi;
 pub mod ping;
 pub mod psync;
@@ -31,6 +32,7 @@ pub use get::Get;
 pub use incr::Incr;
 pub use info::Info;
 pub use key::Keys;
+pub use lrange::LRange;
 pub use multi::Multi;
 pub use ping::Ping;
 pub use psync::PSync;
@@ -65,6 +67,7 @@ pub enum Command {
     Exec(Exec),
     Discard(Discard),
     RPush(RPush),
+    LRange(LRange),
     Unknown(Unknown),
 }
 
@@ -92,6 +95,7 @@ impl Command {
             "exec" => Command::Exec(Exec::parse_frame(&mut parse)?),
             "discard" => Command::Discard(Discard::parse_frame(&mut parse)?),
             "rpush" => Command::RPush(RPush::parse_frame(&mut parse)?),
+            "lrange" => Command::LRange(LRange::parse_frame(&mut parse)?),
             "config" => {
                 let sub_command_string = parse.next_string()?.to_lowercase();
                 match &sub_command_string[..] {
@@ -139,6 +143,7 @@ impl Command {
             Exec(cmd) => cmd.apply(db, transaction_state, conn).await,
             Discard(cmd) => cmd.apply(conn, transaction_state).await,
             RPush(cmd) => cmd.apply(db, conn).await,
+            LRange(cmd) => cmd.apply(db, conn).await,
             Unknown(cmd) => cmd.apply(conn).await,
         }
     }

@@ -98,7 +98,6 @@ impl Db {
 
         if key == "*" {
             result_keys = state.entries.keys().cloned().map(|x| x.into()).collect();
-            // extend steam key heee
             result_keys.extend(state.stream.keys().cloned().map(|x| x.into()));
         } else if key.ends_with('*') {
             let prefix = &key[0..key.len() - 1];
@@ -192,6 +191,41 @@ impl Db {
         list.values.extend(valuse);
         list.key_count += len;
         list.key_count
+    }
+
+    pub fn lrange(&self, key: String, start: i64, end: i64) -> Vec<Bytes> {
+        let state = self.shared.state.lock().unwrap();
+        let mut v = Vec::new();
+
+        if let Some(list) = state.list.get(&key) {
+            let list_len = list.values.len() as i64;
+
+            if list_len == 0 {
+                return v;
+            }
+
+            let norm_start = if start < 0 {
+                (list_len + start).max(0)
+            } else {
+                start.min(list_len - 1)
+            };
+
+            let norm_end = if end < 0 {
+                (list_len + end).max(-1)
+            } else {
+                end.min(list_len - 1)
+            };
+
+            if norm_start > norm_end || norm_start >= list_len || norm_end < 0 {
+                return v;
+            }
+
+            let start_idx = norm_start as usize;
+            let end_idx = norm_end as usize;
+            v.extend_from_slice(&list.values[start_idx..=end_idx]);
+        }
+
+        v
     }
 
     pub fn set(&self, key: String, value: Bytes, expire: Option<Duration>) {
