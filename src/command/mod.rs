@@ -15,6 +15,7 @@ pub mod multi;
 pub mod ping;
 pub mod psync;
 pub mod replconf;
+pub mod rpush;
 pub mod set;
 pub mod type_cmd;
 pub mod unknown;
@@ -34,6 +35,7 @@ pub use multi::Multi;
 pub use ping::Ping;
 pub use psync::PSync;
 pub use replconf::ReplConf;
+pub use rpush::RPush;
 pub use set::Set;
 pub use type_cmd::Type;
 pub use unknown::Unknown;
@@ -62,6 +64,7 @@ pub enum Command {
     Muiti(Multi),
     Exec(Exec),
     Discard(Discard),
+    RPush(RPush),
     Unknown(Unknown),
 }
 
@@ -88,6 +91,7 @@ impl Command {
             "multi" => Command::Muiti(Multi::parse_frame(&mut parse)?),
             "exec" => Command::Exec(Exec::parse_frame(&mut parse)?),
             "discard" => Command::Discard(Discard::parse_frame(&mut parse)?),
+            "rpush" => Command::RPush(RPush::parse_frame(&mut parse)?),
             "config" => {
                 let sub_command_string = parse.next_string()?.to_lowercase();
                 match &sub_command_string[..] {
@@ -134,6 +138,7 @@ impl Command {
             Muiti(cmd) => cmd.apply(transaction_state, conn).await,
             Exec(cmd) => cmd.apply(db, transaction_state, conn).await,
             Discard(cmd) => cmd.apply(conn, transaction_state).await,
+            RPush(cmd) => cmd.apply(conn).await,
             Unknown(cmd) => cmd.apply(conn).await,
         }
     }
