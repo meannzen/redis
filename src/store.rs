@@ -192,6 +192,14 @@ impl Db {
         list.key_count += len;
         list.key_count
     }
+    pub fn lpush(&self, key: String, valuse: Vec<Bytes>) -> u64 {
+        let mut state = self.shared.state.lock().unwrap();
+        let list = state.list.entry(key).or_default();
+        let len = valuse.len() as u64;
+        list.values.splice(..0, valuse.iter().cloned());
+        list.key_count += len;
+        list.key_count
+    }
 
     pub fn lrange(&self, key: String, start: i64, end: i64) -> Vec<Bytes> {
         let state = self.shared.state.lock().unwrap();

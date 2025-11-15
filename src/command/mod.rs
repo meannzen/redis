@@ -1,3 +1,4 @@
+use crate::command::rpush::LPush;
 use crate::parse::Parse;
 use crate::server::{ReplicaState, Shutdown, TransactionState};
 use crate::store::Db;
@@ -68,6 +69,7 @@ pub enum Command {
     Discard(Discard),
     RPush(RPush),
     LRange(LRange),
+    LPush(LPush),
     Unknown(Unknown),
 }
 
@@ -96,6 +98,7 @@ impl Command {
             "discard" => Command::Discard(Discard::parse_frame(&mut parse)?),
             "rpush" => Command::RPush(RPush::parse_frame(&mut parse)?),
             "lrange" => Command::LRange(LRange::parse_frame(&mut parse)?),
+            "lpush" => Command::LPush(LPush::parse_frame(&mut parse)?),
             "config" => {
                 let sub_command_string = parse.next_string()?.to_lowercase();
                 match &sub_command_string[..] {
@@ -144,6 +147,7 @@ impl Command {
             Discard(cmd) => cmd.apply(conn, transaction_state).await,
             RPush(cmd) => cmd.apply(db, conn).await,
             LRange(cmd) => cmd.apply(db, conn).await,
+            LPush(cmd) => cmd.apply(db, conn).await,
             Unknown(cmd) => cmd.apply(conn).await,
         }
     }

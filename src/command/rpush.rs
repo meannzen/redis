@@ -35,3 +35,29 @@ impl RPush {
         Ok(())
     }
 }
+
+#[derive(Debug)]
+pub struct LPush {
+    key: String,
+    values: Vec<Bytes>,
+}
+
+impl LPush {
+    pub fn parse_frame(parse: &mut Parse) -> crate::Result<LPush> {
+        let key = parse.next_string()?;
+        let mut values = Vec::new();
+        while let Ok(byte) = parse.next_bytes() {
+            values.push(byte);
+        }
+
+        Ok(LPush { key, values })
+    }
+
+    pub async fn apply(self, db: &Db, conn: &mut Connection) -> crate::Result<()> {
+        let mut values = self.values.clone();
+        values.reverse();
+        let size = db.lpush(self.key, values);
+        conn.write_frame(&Frame::Integer(size)).await?;
+        Ok(())
+    }
+}
