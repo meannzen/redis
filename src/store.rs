@@ -246,6 +246,16 @@ impl Db {
         len
     }
 
+    pub fn lpop(&self, key: String) -> Option<Bytes> {
+        let mut state = self.shared.state.lock().unwrap();
+        if let Some(list) = state.list.get_mut(&key) {
+            if !list.values.is_empty() {
+                return Some(list.values.remove(0));
+            }
+        }
+        None
+    }
+
     pub fn set(&self, key: String, value: Bytes, expire: Option<Duration>) {
         let mut state = self.shared.state.lock().unwrap();
         let mut notify = false;

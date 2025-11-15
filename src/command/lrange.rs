@@ -47,3 +47,26 @@ impl LLen {
         Ok(())
     }
 }
+
+#[derive(Debug)]
+pub struct LPop {
+    key: String,
+}
+
+impl LPop {
+    pub fn parse_frame(parse: &mut Parse) -> crate::Result<LPop> {
+        Ok(LPop {
+            key: parse.next_string()?,
+        })
+    }
+
+    pub async fn apply(self, db: &Db, conn: &mut Connection) -> crate::Result<()> {
+        let mut frame = Frame::Null;
+        if let Some(byte) = db.lpop(self.key) {
+            frame = Frame::Bulk(byte);
+        }
+
+        conn.write_frame(&frame).await?;
+        Ok(())
+    }
+}

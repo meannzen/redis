@@ -1,4 +1,4 @@
-use crate::command::lrange::LLen;
+use crate::command::lrange::{LLen, LPop};
 use crate::command::rpush::LPush;
 use crate::parse::Parse;
 use crate::server::{ReplicaState, Shutdown, TransactionState};
@@ -72,6 +72,7 @@ pub enum Command {
     LRange(LRange),
     LPush(LPush),
     LLen(LLen),
+    LPop(LPop),
     Unknown(Unknown),
 }
 
@@ -102,6 +103,7 @@ impl Command {
             "lrange" => Command::LRange(LRange::parse_frame(&mut parse)?),
             "lpush" => Command::LPush(LPush::parse_frame(&mut parse)?),
             "llen" => Command::LLen(LLen::parse_frame(&mut parse)?),
+            "lpop" => Command::LPop(LPop::parse_frame(&mut parse)?),
             "config" => {
                 let sub_command_string = parse.next_string()?.to_lowercase();
                 match &sub_command_string[..] {
@@ -152,6 +154,7 @@ impl Command {
             LRange(cmd) => cmd.apply(db, conn).await,
             LPush(cmd) => cmd.apply(db, conn).await,
             LLen(cmd) => cmd.apply(db, conn).await,
+            LPop(cmd) => cmd.apply(db, conn).await,
             Unknown(cmd) => cmd.apply(conn).await,
         }
     }
