@@ -1,3 +1,7 @@
+use std::time::Duration;
+
+use tokio::time::sleep;
+
 use crate::{parse::Parse, store::Db, Connection, Frame};
 
 #[derive(Debug)]
@@ -105,6 +109,50 @@ impl LPop {
         }
 
         conn.write_frame(&frame).await?;
+        Ok(())
+    }
+}
+
+#[derive(Debug)]
+pub struct BLPop {
+    key: String,
+    timeout: Duration,
+}
+
+impl BLPop {
+    pub fn parse_frame(parse: &mut Parse) -> crate::Result<BLPop> {
+        let key = parse.next_string()?;
+        let value: f64 = parse.next_string()?.parse()?;
+        let timeout = Duration::from_secs_f64(value);
+        Ok(BLPop { key, timeout })
+    }
+
+    pub async fn apply(self, db: &Db, conn: &mut Connection) -> crate::Result<()> {
+        let timeout = if self.timeout.as_secs_f64() < 0.0 {
+            Duration::ZERO
+        } else {
+            self.timeout
+        };
+
+        dbg!(&self);
+        let try_pop = || db.bl_pop(self.key.clone());
+        if timeout == Duration::ZERO {
+            loop {
+                let vec_byte = try_pop();
+                if !vec_byte.is_empty() {
+                    let mut frame = Frame::array();
+                    if let Frame::Array(ref mut v) = frame {
+                        for byte in vec_byte {
+                            v.push(Frame::Bulk(byte));
+                        }
+                    }
+                    conn.write_frame(&frame).await?;
+                    return Ok(());
+                }
+
+                sleep(Duration::from_millis(10)).await;
+            }
+        }
         Ok(())
     }
 }

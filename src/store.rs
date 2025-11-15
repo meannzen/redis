@@ -284,6 +284,19 @@ impl Db {
         removed
     }
 
+    pub fn bl_pop(&self, key: String) -> Vec<Bytes> {
+        let mut state = self.shared.state.lock().unwrap();
+
+        if let Some(list) = state.list.get_mut(&key) {
+            if let Some(first) = list.values.first().cloned() {
+                list.values.remove(0);
+                return vec![Bytes::from(key), first];
+            }
+        }
+
+        Vec::new()
+    }
+
     pub fn set(&self, key: String, value: Bytes, expire: Option<Duration>) {
         let mut state = self.shared.state.lock().unwrap();
         let mut notify = false;
