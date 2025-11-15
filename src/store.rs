@@ -236,6 +236,16 @@ impl Db {
         v
     }
 
+    pub fn llen(&self, key: String) -> usize {
+        let mut len = 0;
+        let state = self.shared.state.lock().unwrap();
+        if let Some(list) = state.list.get(&key) {
+            len = list.values.len();
+        }
+
+        len
+    }
+
     pub fn set(&self, key: String, value: Bytes, expire: Option<Duration>) {
         let mut state = self.shared.state.lock().unwrap();
         let mut notify = false;

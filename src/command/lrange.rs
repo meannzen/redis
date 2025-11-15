@@ -28,3 +28,22 @@ impl LRange {
         Ok(())
     }
 }
+
+#[derive(Debug)]
+pub struct LLen {
+    key: String,
+}
+
+impl LLen {
+    pub fn parse_frame(parse: &mut Parse) -> crate::Result<LLen> {
+        Ok(LLen {
+            key: parse.next_string()?,
+        })
+    }
+
+    pub async fn apply(self, db: &Db, conn: &mut Connection) -> crate::Result<()> {
+        let len = db.llen(self.key) as u64;
+        conn.write_frame(&Frame::Integer(len)).await?;
+        Ok(())
+    }
+}
