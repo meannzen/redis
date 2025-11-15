@@ -51,18 +51,56 @@ impl LLen {
 #[derive(Debug)]
 pub struct LPop {
     key: String,
+    range: Option<(i64, i64)>,
 }
 
 impl LPop {
     pub fn parse_frame(parse: &mut Parse) -> crate::Result<LPop> {
-        Ok(LPop {
-            key: parse.next_string()?,
-        })
+        let key = parse.next_string()?;
+        let mut range = None;
+        let mut start: i64 = 0;
+        let mut end: i64 = 0;
+        let mut has_start = false;
+        if let Ok(start_str) = parse.next_string() {
+            has_start = true;
+            start = start_str.parse()?;
+        }
+
+        let mut has_end = false;
+        if let Ok(end_str) = parse.next_string() {
+            has_end = true;
+            start = end_str.parse()?;
+        }
+
+        if !has_end {
+            end = start - 1;
+            start = 0;
+        }
+
+        if start != end {
+            range = Some((start, end));
+        }
+
+        if !has_end && !has_start {
+            range = None;
+        }
+
+        Ok(LPop { key, range })
     }
 
     pub async fn apply(self, db: &Db, conn: &mut Connection) -> crate::Result<()> {
         let mut frame = Frame::Null;
-        if let Some(byte) = db.lpop(self.key) {
+        if let Some(range) = self.range {
+            let v = db.lpop_rang(self.key.clone(), range.0, range.1);
+            if !v.is_empty() {
+                frame = Frame::array();
+                if let Frame::Array(ref mut list) = frame {
+                    for byte in v {
+                        list.push(Frame::Bulk(byte));
+                    }
+                }
+            }
+        } else if let Some(byte) = db.lpop(self.key) {
             frame = Frame::Bulk(byte);
         }
 

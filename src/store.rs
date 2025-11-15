@@ -256,6 +256,34 @@ impl Db {
         None
     }
 
+    pub fn lpop_rang(&self, key: String, start: i64, end: i64) -> Vec<Bytes> {
+        let mut state = self.shared.state.lock().unwrap();
+        let mut removed = Vec::new();
+
+        if let Some(list) = state.list.get_mut(&key) {
+            let len = list.values.len() as i64;
+            if len == 0 {
+                return removed;
+            }
+
+            let norm_start = if start < 0 { len + start } else { start }
+                .max(0)
+                .min(len - 1);
+            let norm_end = if end < 0 { len + end } else { end }.max(-1).min(len - 1);
+
+            if norm_start > norm_end || norm_start >= len || norm_end < 0 {
+                return removed;
+            }
+
+            let start_idx = norm_start as usize;
+            let end_idx = norm_end as usize;
+
+            removed.extend(list.values.drain(start_idx..=end_idx));
+        }
+
+        removed
+    }
+
     pub fn set(&self, key: String, value: Bytes, expire: Option<Duration>) {
         let mut state = self.shared.state.lock().unwrap();
         let mut notify = false;
