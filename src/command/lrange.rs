@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use tokio::time::sleep;
 
@@ -153,6 +153,31 @@ impl BLPop {
                 sleep(Duration::from_millis(10)).await;
             }
         }
-        Ok(())
+        let deadline = Instant::now() + timeout;
+
+        loop {
+            let vec_byte = try_pop();
+            if !vec_byte.is_empty() {
+                let mut frame = Frame::array();
+                if let Frame::Array(ref mut v) = frame {
+                    for byte in vec_byte {
+                        v.push(Frame::Bulk(byte));
+                    }
+                }
+                conn.write_frame(&frame).await?;
+                return Ok(());
+            }
+
+            let now = Instant::now();
+            if now >= deadline {
+                conn.write_null_array().await?;
+                return Ok(());
+            }
+
+            // Sleep until deadline or a small tick
+            let remaining = deadline.saturating_duration_since(now);
+            let sleep_dur = remaining.min(Duration::from_millis(10));
+            sleep(sleep_dur).await;
+        }
     }
 }
