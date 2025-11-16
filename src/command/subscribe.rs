@@ -104,8 +104,8 @@ async fn handle_command(
             subscribe_to.extend(cmd.channels.into_iter());
         }
         command => {
-            let cmd = Unknown::new(command.get_name());
-            cmd.apply(conn).await?;
+            let frame = Frame::Error(format!("ERR Can't execute '{}': only (P|S)SUBSCRIBE / (P|S)UNSUBSCRIBE / PING / QUIT / RESET are allowed in this context", command.get_name()));
+            conn.write_frame(&frame).await?;
         }
     }
 
