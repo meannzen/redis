@@ -20,6 +20,7 @@ pub mod psync;
 pub mod replconf;
 pub mod rpush;
 pub mod set;
+pub mod subscribe;
 pub mod type_cmd;
 pub mod unknown;
 pub mod wait;
@@ -41,6 +42,7 @@ pub use psync::PSync;
 pub use replconf::ReplConf;
 pub use rpush::RPush;
 pub use set::Set;
+pub use subscribe::Subscribe;
 pub use type_cmd::Type;
 pub use unknown::Unknown;
 pub use wait::Wait;
@@ -74,6 +76,7 @@ pub enum Command {
     LLen(LLen),
     LPop(LPop),
     BLPop(BLPop),
+    Subscribe(Subscribe),
     Unknown(Unknown),
 }
 
@@ -106,6 +109,7 @@ impl Command {
             "llen" => Command::LLen(LLen::parse_frame(&mut parse)?),
             "lpop" => Command::LPop(LPop::parse_frame(&mut parse)?),
             "blpop" => Command::BLPop(BLPop::parse_frame(&mut parse)?),
+            "subscribe" => Command::Subscribe(Subscribe::parse_frame(&mut parse)?),
             "config" => {
                 let sub_command_string = parse.next_string()?.to_lowercase();
                 match &sub_command_string[..] {
@@ -158,6 +162,7 @@ impl Command {
             LLen(cmd) => cmd.apply(db, conn).await,
             LPop(cmd) => cmd.apply(db, conn).await,
             BLPop(cmd) => cmd.apply(db, conn).await,
+            Subscribe(cmd) => cmd.apply(conn).await,
             Unknown(cmd) => cmd.apply(conn).await,
         }
     }
