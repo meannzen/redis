@@ -43,22 +43,29 @@ impl Subscribe {
             }
 
             select! {
-                Some((channel_name, msg)) = subscriptions.next() => {
-                  dbg!(channel_name, msg);
-                }
-                res = conn.read_frame() => {
-                    let frame = match res? {
-                        Some(frame) => frame,
-                        None => return Ok(())
-                    };
+             Some((channel, msg)) = subscriptions.next() => {
 
-                    handle_command(
-                        frame,
-                        &mut self.channels,
-                        conn,
-                    ).await?;
-                }
-                _ = shutdown.recv() => {
+             let mut frame = Frame::array();
+
+             frame.push_bulk(Bytes::from_static(b"message"));
+             frame.push_bulk(Bytes::from(channel));
+             frame.push_bulk(msg);
+
+             conn.write_frame(&frame).await?;
+            }
+            res = conn.read_frame() => {
+              let frame = match res? {
+                    Some(frame) => frame,
+                    None => return Ok(())
+                };
+
+                handle_command(
+                            frame,
+                            &mut self.channels,
+                            conn,
+                        ).await?;
+                    }
+            _ = shutdown.recv() => {
                     return Ok(());
                 }
             }
