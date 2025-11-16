@@ -103,6 +103,13 @@ async fn handle_command(
         Command::Subscribe(cmd) => {
             subscribe_to.extend(cmd.channels.into_iter());
         }
+
+        Command::Ping(_) => {
+            let mut frame = Frame::array();
+            frame.push_bulk(Bytes::from_static(b"pong"));
+            frame.push_bulk(Bytes::from_static(b""));
+            conn.write_frame(&frame).await?;
+        }
         command => {
             let frame = Frame::Error(format!("ERR Can't execute '{}': only (P|S)SUBSCRIBE / (P|S)UNSUBSCRIBE / PING / QUIT / RESET are allowed in this context", command.get_name()));
             conn.write_frame(&frame).await?;
