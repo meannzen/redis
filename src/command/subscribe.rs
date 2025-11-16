@@ -3,7 +3,7 @@ use tokio::select;
 
 use bytes::Bytes;
 use tokio::sync::broadcast;
-use tokio_stream::{Stream, StreamMap};
+use tokio_stream::{Stream, StreamExt, StreamMap};
 
 use crate::{parse::Parse, server::Shutdown, store::Db, Command, Connection, Frame};
 
@@ -43,6 +43,9 @@ impl Subscribe {
             }
 
             select! {
+                Some((channel_name, msg)) = subscriptions.next() => {
+                  dbg!(channel_name, msg);
+                }
                 res = conn.read_frame() => {
                     let frame = match res? {
                         Some(frame) => frame,

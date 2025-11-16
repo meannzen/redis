@@ -333,11 +333,11 @@ impl Db {
         }
     }
 
-    pub fn subscribe(&self, key: String) -> broadcast::Receiver<Bytes> {
+    pub fn subscribe(&self, channel: String) -> broadcast::Receiver<Bytes> {
         use std::collections::hash_map::Entry;
 
         let mut state = self.shared.state.lock().unwrap();
-        match state.pub_sub.entry(key) {
+        match state.pub_sub.entry(channel) {
             Entry::Occupied(e) => e.get().subscribe(),
             Entry::Vacant(e) => {
                 let (tx, rx) = broadcast::channel(1024);
@@ -345,6 +345,15 @@ impl Db {
                 rx
             }
         }
+    }
+
+    pub fn publish(&self, channel: String, value: Bytes) -> usize {
+        let state = self.shared.state.lock().unwrap();
+        state
+            .pub_sub
+            .get(&channel)
+            .map(|tx| tx.send(value).unwrap_or(0))
+            .unwrap_or(0)
     }
 
     fn shutdown_purge_task(&self) {

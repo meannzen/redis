@@ -17,6 +17,7 @@ pub mod lrange;
 pub mod multi;
 pub mod ping;
 pub mod psync;
+pub mod publish;
 pub mod replconf;
 pub mod rpush;
 pub mod set;
@@ -39,6 +40,7 @@ pub use lrange::LRange;
 pub use multi::Multi;
 pub use ping::Ping;
 pub use psync::PSync;
+pub use publish::Publish;
 pub use replconf::ReplConf;
 pub use rpush::RPush;
 pub use set::Set;
@@ -77,6 +79,7 @@ pub enum Command {
     LPop(LPop),
     BLPop(BLPop),
     Subscribe(Subscribe),
+    Publish(Publish),
     Unknown(Unknown),
 }
 
@@ -110,6 +113,7 @@ impl Command {
             "lpop" => Command::LPop(LPop::parse_frame(&mut parse)?),
             "blpop" => Command::BLPop(BLPop::parse_frame(&mut parse)?),
             "subscribe" => Command::Subscribe(Subscribe::parse_frame(&mut parse)?),
+            "publish" => Command::Publish(Publish::parse_frame(&mut parse)?),
             "config" => {
                 let sub_command_string = parse.next_string()?.to_lowercase();
                 match &sub_command_string[..] {
@@ -163,6 +167,7 @@ impl Command {
             LPop(cmd) => cmd.apply(db, conn).await,
             BLPop(cmd) => cmd.apply(db, conn).await,
             Subscribe(cmd) => cmd.apply(db, conn, shutdown).await,
+            Publish(cmd) => cmd.apply(db, conn).await,
             Unknown(cmd) => cmd.apply(conn).await,
         }
     }
@@ -198,6 +203,7 @@ impl Command {
             Command::LPop(_) => "lpop",
             Command::BLPop(_) => "blpop",
             Command::Subscribe(_) => "subscribe",
+            Command::Publish(_) => "publish",
             Command::Unknown(_) => "unknown",
         }
     }
