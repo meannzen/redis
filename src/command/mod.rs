@@ -1,5 +1,6 @@
 use crate::command::lrange::{BLPop, LLen, LPop};
 use crate::command::rpush::LPush;
+use crate::command::subscribe::Unsubscribe;
 use crate::parse::Parse;
 use crate::server::{ReplicaState, Shutdown, TransactionState};
 use crate::store::Db;
@@ -80,6 +81,7 @@ pub enum Command {
     BLPop(BLPop),
     Subscribe(Subscribe),
     Publish(Publish),
+    Unsubscribe(Unsubscribe),
     Unknown(Unknown),
 }
 
@@ -114,6 +116,7 @@ impl Command {
             "blpop" => Command::BLPop(BLPop::parse_frame(&mut parse)?),
             "subscribe" => Command::Subscribe(Subscribe::parse_frame(&mut parse)?),
             "publish" => Command::Publish(Publish::parse_frame(&mut parse)?),
+            "unsubscribe" => Command::Unsubscribe(Unsubscribe::parse_frame(&mut parse)?),
             "config" => {
                 let sub_command_string = parse.next_string()?.to_lowercase();
                 match &sub_command_string[..] {
@@ -168,6 +171,7 @@ impl Command {
             BLPop(cmd) => cmd.apply(db, conn).await,
             Subscribe(cmd) => cmd.apply(db, conn, shutdown).await,
             Publish(cmd) => cmd.apply(db, conn).await,
+            Unsubscribe(_) => Err("`Unsubscribe` is unsupported in this context".into()),
             Unknown(cmd) => cmd.apply(conn).await,
         }
     }
@@ -204,6 +208,7 @@ impl Command {
             Command::BLPop(_) => "blpop",
             Command::Subscribe(_) => "subscribe",
             Command::Publish(_) => "publish",
+            Command::Unsubscribe(_) => "unsubscribe",
             Command::Unknown(_) => "unknown",
         }
     }

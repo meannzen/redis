@@ -62,6 +62,7 @@ impl Subscribe {
                 handle_command(
                             frame,
                             &mut self.channels,
+                         &mut subscriptions,
                             conn,
                         ).await?;
                     }
@@ -105,6 +106,7 @@ async fn subscribe_to_channal(
 async fn handle_command(
     frame: Frame,
     subscribe_to: &mut Vec<String>,
+    subscriptions: &mut StreamMap<String, Message>,
     conn: &mut Connection,
 ) -> crate::Result<()> {
     match Command::from_frame(frame)? {
@@ -118,6 +120,25 @@ async fn handle_command(
             frame.push_bulk(Bytes::from_static(b""));
             conn.write_frame(&frame).await?;
         }
+        Command::Unsubscribe(mut unsubscribes) => {
+            if unsubscribes.channels.is_empty() {
+                unsubscribes.channels = subscriptions
+                    .keys()
+                    .map(|channel| channel.to_string())
+                    .collect();
+            }
+
+            for channel in unsubscribes.channels {
+                subscriptions.remove(&channel);
+
+                let mut frame = Frame::array();
+                frame.push_bulk(Bytes::from_static(b"unsubscribe"));
+                frame.push_bulk(Bytes::from(channel));
+                frame.push_int(subscriptions.len() as u64);
+
+                conn.write_frame(&frame).await?;
+            }
+        }
         command => {
             let frame = Frame::Error(format!("ERR Can't execute '{}': only (P|S)SUBSCRIBE / (P|S)UNSUBSCRIBE / PING / QUIT / RESET are allowed in this context", command.get_name()));
             conn.write_frame(&frame).await?;
@@ -125,4 +146,26 @@ async fn handle_command(
     }
 
     Ok(())
+}
+
+#[derive(Debug, Clone)]
+pub struct Unsubscribe {
+    channels: Vec<String>,
+}
+
+impl Unsubscribe {
+    pub fn parse_frame(parse: &mut Parse) -> crate::Result<Unsubscribe> {
+        use crate::parse::ParseError::EndOfStream;
+
+        let mut channels = vec![parse.next_string()?];
+        loop {
+            match parse.next_string() {
+                Ok(s) => channels.push(s),
+                Err(EndOfStream) => break,
+                Err(err) => return Err(err.into()),
+            }
+        }
+
+        Ok(Unsubscribe { channels })
+    }
 }
