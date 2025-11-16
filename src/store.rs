@@ -5,7 +5,7 @@ use std::{
 
 use bytes::Bytes;
 use tokio::{
-    sync::Notify,
+    sync::{broadcast, Notify},
     time::{self, Duration, Instant},
 };
 
@@ -39,6 +39,7 @@ struct State {
     expirations: BTreeSet<(Instant, String)>,
     stream: HashMap<String, Stream>,
     list: HashMap<String, ListEntry>,
+    pub_sub: HashMap<String, broadcast::Sender<Bytes>>,
     shutdown: bool,
 }
 
@@ -78,6 +79,7 @@ impl Db {
                 stream: HashMap::new(),
                 expirations: BTreeSet::new(),
                 list: HashMap::new(),
+                pub_sub: HashMap::new(),
                 shutdown: false,
             }),
 
@@ -328,6 +330,20 @@ impl Db {
         drop(state);
         if notify {
             self.shared.background_task.notify_one();
+        }
+    }
+
+    pub fn subscribe(&self, key: String) -> broadcast::Receiver<Bytes> {
+        use std::collections::hash_map::Entry;
+
+        let mut state = self.shared.state.lock().unwrap();
+        match state.pub_sub.entry(key) {
+            Entry::Occupied(e) => e.get().subscribe(),
+            Entry::Vacant(e) => {
+                let (tx, rx) = broadcast::channel(1024);
+                e.insert(tx);
+                rx
+            }
         }
     }
 

@@ -134,7 +134,7 @@ impl Command {
         db: &Db,
         config: &crate::server_cli::Cli,
         conn: &mut Connection,
-        _shutdown: &mut Shutdown,
+        shutdown: &mut Shutdown,
     ) -> crate::Result<()> {
         use Command::*;
         match self {
@@ -162,12 +162,43 @@ impl Command {
             LLen(cmd) => cmd.apply(db, conn).await,
             LPop(cmd) => cmd.apply(db, conn).await,
             BLPop(cmd) => cmd.apply(db, conn).await,
-            Subscribe(cmd) => cmd.apply(conn).await,
+            Subscribe(cmd) => cmd.apply(db, conn, shutdown).await,
             Unknown(cmd) => cmd.apply(conn).await,
         }
     }
 
     pub fn is_writer(&self) -> bool {
         matches!(self, Command::Set(_))
+    }
+
+    pub fn get_name(&self) -> &str {
+        match self {
+            Command::Ping(_) => "ping",
+            Command::Echo(_) => "echo",
+            Command::Get(_) => "get",
+            Command::Set(_) => "set",
+            Command::Config(_) => "config",
+            Command::Keys(_) => "keys",
+            Command::Info(_) => "info",
+            Command::ReplConf(_) => "replconf",
+            Command::PSync(_) => "psync",
+            Command::Wait(_) => "wait",
+            Command::Type(_) => "type",
+            Command::XAdd(_) => "xadd",
+            Command::XRange(_) => "xrange",
+            Command::XRead(_) => "xread",
+            Command::Ince(_) => "incr",
+            Command::Muiti(_) => "multi",
+            Command::Exec(_) => "exec",
+            Command::Discard(_) => "discard",
+            Command::RPush(_) => "rpush",
+            Command::LRange(_) => "lrange",
+            Command::LPush(_) => "lpush",
+            Command::LLen(_) => "llen",
+            Command::LPop(_) => "lpop",
+            Command::BLPop(_) => "blpop",
+            Command::Subscribe(_) => "subscribe",
+            Command::Unknown(_) => "unknown",
+        }
     }
 }
