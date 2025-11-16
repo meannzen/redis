@@ -5,9 +5,7 @@ use bytes::Bytes;
 use tokio::sync::broadcast;
 use tokio_stream::{Stream, StreamMap};
 
-use crate::{
-    command::Unknown, parse::Parse, server::Shutdown, store::Db, Command, Connection, Frame,
-};
+use crate::{parse::Parse, server::Shutdown, store::Db, Command, Connection, Frame};
 
 type Message = Pin<Box<dyn Stream<Item = Bytes> + Send>>;
 
