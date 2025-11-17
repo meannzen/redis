@@ -52,6 +52,8 @@ pub use wait::Wait;
 pub use xadd::XAdd;
 pub use xrange::XRange;
 pub use xread::XRead;
+pub mod zadd;
+pub use zadd::ZAdd;
 
 #[derive(Debug)]
 pub enum Command {
@@ -82,6 +84,7 @@ pub enum Command {
     Subscribe(Subscribe),
     Publish(Publish),
     Unsubscribe(Unsubscribe),
+    ZAdd(ZAdd),
     Unknown(Unknown),
 }
 
@@ -117,6 +120,7 @@ impl Command {
             "subscribe" => Command::Subscribe(Subscribe::parse_frame(&mut parse)?),
             "publish" => Command::Publish(Publish::parse_frame(&mut parse)?),
             "unsubscribe" => Command::Unsubscribe(Unsubscribe::parse_frame(&mut parse)?),
+            "zadd" => Command::ZAdd(ZAdd::parse_frame(&mut parse)?),
             "config" => {
                 let sub_command_string = parse.next_string()?.to_lowercase();
                 match &sub_command_string[..] {
@@ -172,6 +176,7 @@ impl Command {
             Subscribe(cmd) => cmd.apply(db, conn, shutdown).await,
             Publish(cmd) => cmd.apply(db, conn).await,
             Unsubscribe(_) => Err("`Unsubscribe` is unsupported in this context".into()),
+            ZAdd(cmd) => cmd.apply(conn).await,
             Unknown(cmd) => cmd.apply(conn).await,
         }
     }
@@ -209,6 +214,7 @@ impl Command {
             Command::Subscribe(_) => "subscribe",
             Command::Publish(_) => "publish",
             Command::Unsubscribe(_) => "unsubscribe",
+            Command::ZAdd(_) => "zadd",
             Command::Unknown(_) => "unknown",
         }
     }
