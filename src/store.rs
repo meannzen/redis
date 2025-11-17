@@ -12,6 +12,32 @@ use tokio::{
 use crate::stream::{Fields, Stream, StreamId};
 use std::str::FromStr;
 
+use std::cmp::Ordering;
+use std::hash::{Hash, Hasher};
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct OrdF64(pub f64);
+
+impl PartialOrd for OrdF64 {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for OrdF64 {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.0.partial_cmp(&other.0).unwrap_or(Ordering::Equal)
+    }
+}
+
+impl Eq for OrdF64 {}
+
+impl Hash for OrdF64 {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.0.to_bits().hash(state);
+    }
+}
+
 #[derive(Debug)]
 pub struct Store {
     pub db: Db,
@@ -33,6 +59,8 @@ struct Shared {
     background_task: Notify,
 }
 
+type ZSet = BTreeMap<OrdF64, String>;
+
 #[derive(Debug)]
 struct State {
     entries: HashMap<String, Entry>,
@@ -40,6 +68,7 @@ struct State {
     stream: HashMap<String, Stream>,
     list: HashMap<String, ListEntry>,
     pub_sub: HashMap<String, broadcast::Sender<Bytes>>,
+    z_set: HashMap<String, ZSet>,
     shutdown: bool,
 }
 
@@ -80,6 +109,7 @@ impl Db {
                 expirations: BTreeSet::new(),
                 list: HashMap::new(),
                 pub_sub: HashMap::new(),
+                z_set: HashMap::new(),
                 shutdown: false,
             }),
 
@@ -297,6 +327,26 @@ impl Db {
         }
 
         Vec::new()
+    }
+
+    pub fn zadd(&self, key: String, member: String, score: f64) -> usize {
+        let mut state = self.shared.state.lock().unwrap();
+        let z_set = state.z_set.entry(key).or_default();
+        let score_key = OrdF64(score);
+
+        let was_new = !z_set.values().any(|m| m == &member);
+
+        if let Some((&old_score, _)) = z_set.iter().find(|(_, m)| m == &&member) {
+            z_set.remove(&old_score);
+        }
+
+        z_set.insert(score_key, member);
+
+        if was_new {
+            1
+        } else {
+            0
+        }
     }
 
     pub fn set(&self, key: String, value: Bytes, expire: Option<Duration>) {

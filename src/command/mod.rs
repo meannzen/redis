@@ -176,7 +176,7 @@ impl Command {
             Subscribe(cmd) => cmd.apply(db, conn, shutdown).await,
             Publish(cmd) => cmd.apply(db, conn).await,
             Unsubscribe(_) => Err("`Unsubscribe` is unsupported in this context".into()),
-            ZAdd(cmd) => cmd.apply(conn).await,
+            ZAdd(cmd) => cmd.apply(db, conn).await,
             Unknown(cmd) => cmd.apply(conn).await,
         }
     }

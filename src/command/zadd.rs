@@ -1,24 +1,26 @@
-use crate::{parse::Parse, Connection};
+use crate::{parse::Parse, store::Db, Connection};
 
 #[derive(Debug)]
 pub struct ZAdd {
     key: String,
-    value: f64,
+    score: f64,
     member: String,
 }
 
 impl ZAdd {
     pub fn parse_frame(parse: &mut Parse) -> crate::Result<ZAdd> {
         let key = parse.next_string()?;
-        let value: f64 = parse.next_string()?.parse()?;
+        let score: f64 = parse.next_string()?.parse()?;
 
         let member = parse.next_string()?;
 
-        Ok(ZAdd { key, value, member })
+        Ok(ZAdd { key, score, member })
     }
 
-    pub async fn apply(self, conn: &mut Connection) -> crate::Result<()> {
-        conn.write_frame(&crate::Frame::Integer(1)).await?;
+    pub async fn apply(self, db: &Db, conn: &mut Connection) -> crate::Result<()> {
+        let value = db.zadd(self.key, self.member, self.score);
+        conn.write_frame(&crate::Frame::Integer(value as u64))
+            .await?;
         Ok(())
     }
 }
