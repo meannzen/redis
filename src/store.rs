@@ -390,6 +390,28 @@ impl Db {
             .map(|((_, member), _)| member.clone())
             .collect()
     }
+    pub fn zcard(&self, key: String) -> usize {
+        let state = self.shared.state.lock().unwrap();
+
+        if let Some(val) = state.z_set.get(&key) {
+            val.len()
+        } else {
+            0
+        }
+    }
+
+    pub fn zscore(&self, key: String, member: Bytes) -> Option<f64> {
+        let state = self.shared.state.lock().unwrap();
+        let z_set = state.z_set.get(&key)?;
+
+        for ((f, m), _) in z_set.iter() {
+            if m == &member {
+                return Some(f.0);
+            }
+        }
+
+        None
+    }
 
     pub fn set(&self, key: String, value: Bytes, expire: Option<Duration>) {
         let mut state = self.shared.state.lock().unwrap();
@@ -422,16 +444,6 @@ impl Db {
         drop(state);
         if notify {
             self.shared.background_task.notify_one();
-        }
-    }
-
-    pub fn zcard(&self, key: String) -> usize {
-        let state = self.shared.state.lock().unwrap();
-
-        if let Some(val) = state.z_set.get(&key) {
-            val.len()
-        } else {
-            0
         }
     }
 

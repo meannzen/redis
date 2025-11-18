@@ -27,6 +27,12 @@ pub struct ZCard {
     key: String,
 }
 
+#[derive(Debug)]
+pub struct ZScore {
+    key: String,
+    member: Bytes,
+}
+
 impl ZAdd {
     pub fn parse_frame(parse: &mut Parse) -> crate::Result<ZAdd> {
         let key = parse.next_string()?;
@@ -96,6 +102,26 @@ impl ZCard {
     pub async fn apply(self, db: &Db, conn: &mut Connection) -> crate::Result<()> {
         let len = db.zcard(self.key);
         let frame = Frame::Integer(len as u64);
+
+        conn.write_frame(&frame).await?;
+        Ok(())
+    }
+}
+
+impl ZScore {
+    pub fn parse_frame(parse: &mut Parse) -> crate::Result<ZScore> {
+        let key = parse.next_string()?;
+        let member = parse.next_bytes()?;
+
+        Ok(ZScore { key, member })
+    }
+
+    pub async fn apply(self, db: &Db, conn: &mut Connection) -> crate::Result<()> {
+        let frame = if let Some(v) = db.zscore(self.key, self.member) {
+            Frame::Bulk(Bytes::from(v.to_string()))
+        } else {
+            Frame::Null
+        };
 
         conn.write_frame(&frame).await?;
         Ok(())
