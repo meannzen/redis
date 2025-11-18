@@ -425,6 +425,16 @@ impl Db {
         }
     }
 
+    pub fn zcard(&self, key: String) -> usize {
+        let state = self.shared.state.lock().unwrap();
+
+        if let Some(val) = state.z_set.get(&key) {
+            val.len()
+        } else {
+            0
+        }
+    }
+
     pub fn subscribe(&self, channel: String) -> broadcast::Receiver<Bytes> {
         use std::collections::hash_map::Entry;
 

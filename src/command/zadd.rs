@@ -22,6 +22,11 @@ pub struct ZRange {
     end: i64,
 }
 
+#[derive(Debug)]
+pub struct ZCard {
+    key: String,
+}
+
 impl ZAdd {
     pub fn parse_frame(parse: &mut Parse) -> crate::Result<ZAdd> {
         let key = parse.next_string()?;
@@ -77,6 +82,22 @@ impl ZRange {
 
         conn.write_frame(&frame).await?;
 
+        Ok(())
+    }
+}
+
+impl ZCard {
+    pub fn parse_frame(parse: &mut Parse) -> crate::Result<ZCard> {
+        Ok(ZCard {
+            key: parse.next_string()?,
+        })
+    }
+
+    pub async fn apply(self, db: &Db, conn: &mut Connection) -> crate::Result<()> {
+        let len = db.zcard(self.key);
+        let frame = Frame::Integer(len as u64);
+
+        conn.write_frame(&frame).await?;
         Ok(())
     }
 }
