@@ -3,6 +3,7 @@ pub mod command;
 pub mod connection;
 pub mod database;
 pub mod frame;
+pub mod geometry;
 pub mod parse;
 pub mod server;
 pub mod server_cli;

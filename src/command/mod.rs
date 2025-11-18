@@ -10,6 +10,7 @@ pub mod config;
 pub mod discard;
 pub mod echo;
 pub mod exec;
+pub mod geo;
 pub mod get;
 pub mod incr;
 pub mod info;
@@ -53,6 +54,7 @@ pub use xadd::XAdd;
 pub use xrange::XRange;
 pub use xread::XRead;
 pub mod zadd;
+pub use geo::GeoAdd;
 pub use zadd::{ZAdd, ZCard, ZRange, ZRank, ZRem, ZScore};
 
 #[derive(Debug)]
@@ -90,6 +92,7 @@ pub enum Command {
     ZCard(ZCard),
     ZScore(ZScore),
     ZRem(ZRem),
+    GeoAdd(GeoAdd),
     Unknown(Unknown),
 }
 
@@ -131,6 +134,7 @@ impl Command {
             "zcard" => Command::ZCard(ZCard::parse_frame(&mut parse)?),
             "zscore" => Command::ZScore(ZScore::parse_frame(&mut parse)?),
             "zrem" => Command::ZRem(ZRem::parse_frame(&mut parse)?),
+            "geoadd" => Command::GeoAdd(GeoAdd::parse_frame(&mut parse)?),
             "config" => {
                 let sub_command_string = parse.next_string()?.to_lowercase();
                 match &sub_command_string[..] {
@@ -192,6 +196,7 @@ impl Command {
             ZCard(cmd) => cmd.apply(db, conn).await,
             ZScore(cmd) => cmd.apply(db, conn).await,
             ZRem(cmd) => cmd.apply(db, conn).await,
+            GeoAdd(cmd) => cmd.apply(db, conn).await,
             Unknown(cmd) => cmd.apply(conn).await,
         }
     }
@@ -235,6 +240,7 @@ impl Command {
             Command::ZCard(_) => "zcard",
             Command::ZScore(_) => "zscore",
             Command::ZRem(_) => "zrem",
+            Command::GeoAdd(_) => "geoadd",
             Command::Unknown(_) => "unknown",
         }
     }
