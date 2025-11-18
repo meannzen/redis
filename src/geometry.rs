@@ -1,3 +1,4 @@
+use std::fmt;
 const MIN_LATITUDE: f64 = -85.05112878;
 const MAX_LATITUDE: f64 = 85.05112878;
 const MIN_LONGITUDE: f64 = -180.0;
@@ -84,6 +85,41 @@ pub fn decode(geo_code: u64) -> Coordinates {
     let grid_longitude_number = compact_int64_to_int32(y);
 
     convert_grid_numbers_to_coordinates(grid_latitude_number, grid_longitude_number)
+}
+
+#[derive(Debug)]
+pub enum GeoError {
+    InvalidLongitude(f64),
+    InvalidLatitude(f64),
+    InvalidPair(f64, f64),
+}
+
+impl fmt::Display for GeoError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            GeoError::InvalidLongitude(_) => write!(f, "ERR invalid longitude"),
+            GeoError::InvalidLatitude(_) => write!(f, "ERR invalid latitude"),
+            GeoError::InvalidPair(lon, lat) => {
+                write!(f, "ERR invalid longitude,latitude pair {lon},{lat}")
+            }
+        }
+    }
+}
+
+pub fn validate_geo_coordinates(longitude: f64, latitude: f64) -> Result<(), GeoError> {
+    if !longitude.is_finite() || !latitude.is_finite() {
+        return Err(GeoError::InvalidPair(longitude, latitude));
+    }
+
+    if !(-180.0..=180.0).contains(&longitude) {
+        return Err(GeoError::InvalidLongitude(longitude));
+    }
+
+    if !(-90.0..=90.0).contains(&latitude) {
+        return Err(GeoError::InvalidLatitude(latitude));
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]
