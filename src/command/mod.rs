@@ -53,7 +53,7 @@ pub use xadd::XAdd;
 pub use xrange::XRange;
 pub use xread::XRead;
 pub mod zadd;
-pub use zadd::{ZAdd, ZRank};
+pub use zadd::{ZAdd, ZRange, ZRank};
 
 #[derive(Debug)]
 pub enum Command {
@@ -86,6 +86,7 @@ pub enum Command {
     Unsubscribe(Unsubscribe),
     ZAdd(ZAdd),
     ZRank(ZRank),
+    ZRange(ZRange),
     Unknown(Unknown),
 }
 
@@ -123,6 +124,7 @@ impl Command {
             "unsubscribe" => Command::Unsubscribe(Unsubscribe::parse_frame(&mut parse)?),
             "zadd" => Command::ZAdd(ZAdd::parse_frame(&mut parse)?),
             "zrank" => Command::ZRank(ZRank::parse_frame(&mut parse)?),
+            "zrange" => Command::ZRange(ZRange::parse_frame(&mut parse)?),
             "config" => {
                 let sub_command_string = parse.next_string()?.to_lowercase();
                 match &sub_command_string[..] {
@@ -180,6 +182,7 @@ impl Command {
             Unsubscribe(_) => Err("`Unsubscribe` is unsupported in this context".into()),
             ZAdd(cmd) => cmd.apply(db, conn).await,
             ZRank(cmd) => cmd.apply(db, conn).await,
+            ZRange(cmd) => cmd.apply(db, conn).await,
             Unknown(cmd) => cmd.apply(conn).await,
         }
     }
@@ -219,6 +222,7 @@ impl Command {
             Command::Unsubscribe(_) => "unsubscribe",
             Command::ZAdd(_) => "zadd",
             Command::ZRank(_) => "zrank",
+            Command::ZRange(_) => "zrange",
             Command::Unknown(_) => "unknown",
         }
     }

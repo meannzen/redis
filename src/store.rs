@@ -59,7 +59,7 @@ struct Shared {
     background_task: Notify,
 }
 
-type ZSet = BTreeMap<(OrdF64, String), ()>;
+type ZSet = BTreeMap<(OrdF64, Bytes), ()>;
 
 #[derive(Debug)]
 struct State {
@@ -329,7 +329,7 @@ impl Db {
         Vec::new()
     }
 
-    pub fn zadd(&self, key: String, member: String, score: f64) -> usize {
+    pub fn zadd(&self, key: String, member: Bytes, score: f64) -> usize {
         let mut state = self.shared.state.lock().unwrap();
         let z_set = state.z_set.entry(key).or_default();
 
@@ -354,7 +354,7 @@ impl Db {
         }
     }
 
-    pub fn zrank(&self, key: String, member: String) -> Option<usize> {
+    pub fn zrank(&self, key: String, member: Bytes) -> Option<usize> {
         let state = self.shared.state.lock().unwrap();
         let z_set = state.z_set.get(&key)?;
 
@@ -364,6 +364,31 @@ impl Db {
             }
         }
         None
+    }
+
+    pub fn zrange(&self, key: String, start: i64, end: i64) -> Vec<Bytes> {
+        let state = self.shared.state.lock().unwrap();
+        let Some(zset) = state.z_set.get(&key) else {
+            return vec![];
+        };
+
+        let len = zset.len() as i64;
+        if len == 0 {
+            return vec![];
+        }
+
+        let start_idx = if start < 0 { len + start } else { start }.max(0) as usize;
+        let end_idx = if end < 0 { len + end } else { end }.min(len - 1) as usize;
+
+        if start_idx > end_idx {
+            return vec![];
+        }
+
+        zset.iter()
+            .skip(start_idx)
+            .take(end_idx - start_idx + 1)
+            .map(|((_, member), _)| member.clone())
+            .collect()
     }
 
     pub fn set(&self, key: String, value: Bytes, expire: Option<Duration>) {
