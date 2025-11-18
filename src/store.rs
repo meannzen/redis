@@ -59,7 +59,7 @@ struct Shared {
     background_task: Notify,
 }
 
-type ZSet = BTreeMap<OrdF64, String>;
+type ZSet = BTreeMap<(OrdF64, String), ()>;
 
 #[derive(Debug)]
 struct State {
@@ -332,21 +332,38 @@ impl Db {
     pub fn zadd(&self, key: String, member: String, score: f64) -> usize {
         let mut state = self.shared.state.lock().unwrap();
         let z_set = state.z_set.entry(key).or_default();
-        let score_key = OrdF64(score);
 
-        let was_new = !z_set.values().any(|m| m == &member);
+        let new_key = (OrdF64(score), member.clone());
+        let already_exists = z_set.iter().any(|((_, m), _)| m == &member);
 
-        if let Some((&old_score, _)) = z_set.iter().find(|(_, m)| m == &&member) {
-            z_set.remove(&old_score);
+        if already_exists {
+            let old_key = z_set
+                .iter()
+                .find(|((_, m), _)| m == &member)
+                .map(|(k, _)| k.clone());
+            if let Some(old) = old_key {
+                z_set.remove(&old);
+            }
         }
 
-        z_set.insert(score_key, member);
-
-        if was_new {
-            1
-        } else {
+        z_set.insert(new_key, ());
+        if already_exists {
             0
+        } else {
+            1
         }
+    }
+
+    pub fn zrank(&self, key: String, member: String) -> Option<usize> {
+        let state = self.shared.state.lock().unwrap();
+        let z_set = state.z_set.get(&key)?;
+
+        for (rank, ((_, m), _)) in z_set.iter().enumerate() {
+            if m == &member {
+                return Some(rank);
+            }
+        }
+        None
     }
 
     pub fn set(&self, key: String, value: Bytes, expire: Option<Duration>) {
