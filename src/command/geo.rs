@@ -2,7 +2,7 @@ use bytes::Bytes;
 
 use crate::{
     frame::Frame,
-    geometry::{validate_geo_coordinates, Coordinates},
+    geometry::{encode, validate_geo_coordinates, Coordinates},
     parse::Parse,
     store::Db,
     Connection,
@@ -39,7 +39,11 @@ impl GeoAdd {
                 Err(s) => Frame::Error(s.to_string()),
             };
 
-        db.zadd(self.key, self.member, 0.0);
+        db.zadd(
+            self.key,
+            self.member,
+            encode(self.coordinate.latitude, self.coordinate.longitude) as f64,
+        );
 
         conn.write_frame(&frame).await?;
         Ok(())
