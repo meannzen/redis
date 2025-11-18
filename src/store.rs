@@ -413,6 +413,33 @@ impl Db {
         None
     }
 
+    pub fn zrem(&self, key: String, member: Bytes) -> u64 {
+        let mut state = self.shared.state.lock().unwrap();
+
+        if let Some(zset) = state.z_set.get_mut(&key) {
+            let mut removed = 0u64;
+
+            let keys_to_remove: Vec<(OrdF64, Bytes)> = zset
+                .iter()
+                .filter(|(&(_score, ref m), &())| m == &member)
+                .map(|(k, &())| k.clone())
+                .collect();
+
+            for k in keys_to_remove {
+                zset.remove(&k);
+                removed += 1;
+            }
+
+            if zset.is_empty() {
+                state.z_set.remove(&key);
+            }
+
+            removed
+        } else {
+            0
+        }
+    }
+
     pub fn set(&self, key: String, value: Bytes, expire: Option<Duration>) {
         let mut state = self.shared.state.lock().unwrap();
         let mut notify = false;

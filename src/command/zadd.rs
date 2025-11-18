@@ -33,6 +33,12 @@ pub struct ZScore {
     member: Bytes,
 }
 
+#[derive(Debug)]
+pub struct ZRem {
+    key: String,
+    member: Bytes,
+}
+
 impl ZAdd {
     pub fn parse_frame(parse: &mut Parse) -> crate::Result<ZAdd> {
         let key = parse.next_string()?;
@@ -122,6 +128,23 @@ impl ZScore {
         } else {
             Frame::Null
         };
+
+        conn.write_frame(&frame).await?;
+        Ok(())
+    }
+}
+
+impl ZRem {
+    pub fn parse_frame(parse: &mut Parse) -> crate::Result<ZRem> {
+        Ok(ZRem {
+            key: parse.next_string()?,
+            member: parse.next_bytes()?,
+        })
+    }
+
+    pub async fn apply(self, db: &Db, conn: &mut Connection) -> crate::Result<()> {
+        let value = db.zrem(self.key, self.member);
+        let frame = Frame::Integer(value);
 
         conn.write_frame(&frame).await?;
         Ok(())

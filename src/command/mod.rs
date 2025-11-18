@@ -53,7 +53,7 @@ pub use xadd::XAdd;
 pub use xrange::XRange;
 pub use xread::XRead;
 pub mod zadd;
-pub use zadd::{ZAdd, ZCard, ZRange, ZRank, ZScore};
+pub use zadd::{ZAdd, ZCard, ZRange, ZRank, ZRem, ZScore};
 
 #[derive(Debug)]
 pub enum Command {
@@ -89,6 +89,7 @@ pub enum Command {
     ZRange(ZRange),
     ZCard(ZCard),
     ZScore(ZScore),
+    ZRem(ZRem),
     Unknown(Unknown),
 }
 
@@ -129,6 +130,7 @@ impl Command {
             "zrange" => Command::ZRange(ZRange::parse_frame(&mut parse)?),
             "zcard" => Command::ZCard(ZCard::parse_frame(&mut parse)?),
             "zscore" => Command::ZScore(ZScore::parse_frame(&mut parse)?),
+            "zrem" => Command::ZRem(ZRem::parse_frame(&mut parse)?),
             "config" => {
                 let sub_command_string = parse.next_string()?.to_lowercase();
                 match &sub_command_string[..] {
@@ -189,6 +191,7 @@ impl Command {
             ZRange(cmd) => cmd.apply(db, conn).await,
             ZCard(cmd) => cmd.apply(db, conn).await,
             ZScore(cmd) => cmd.apply(db, conn).await,
+            ZRem(cmd) => cmd.apply(db, conn).await,
             Unknown(cmd) => cmd.apply(conn).await,
         }
     }
@@ -231,6 +234,7 @@ impl Command {
             Command::ZRange(_) => "zrange",
             Command::ZCard(_) => "zcard",
             Command::ZScore(_) => "zscore",
+            Command::ZRem(_) => "zrem",
             Command::Unknown(_) => "unknown",
         }
     }
