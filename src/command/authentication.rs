@@ -38,10 +38,19 @@ impl ACL {
 
     pub async fn apply(self, db: &Db, conn: &mut Connection) -> crate::Result<()> {
         let command_str = self.command.to_lowercase();
+        if command_str == "whoami" {
+            if conn.is_authenticated() {
+                let name = conn.username().unwrap_or_else(|| "default".to_string());
+                let frame = Frame::Bulk(Bytes::from(name));
+                conn.write_frame(&frame).await?;
+            } else {
+                conn.write_frame(&Frame::Error("NOAUTH Authentication required.".to_string()))
+                    .await?;
+            }
+            return Ok(());
+        }
 
-        let frame = if command_str == "whoami" {
-            Frame::Bulk(Bytes::from_static(b"default"))
-        } else if command_str == "getuser" {
+        let frame = if command_str == "getuser" {
             let mut no_pass = vec![];
             let mut hash = vec![];
             if let Some(user) = self.user {
@@ -62,9 +71,11 @@ impl ACL {
             if let (Some(rule), Some(password), Some(user)) = (self.rule, self.password, self.user)
             {
                 if rule == ">" && !password.is_empty() && !user.is_empty() {
-                    let hash = Sha256::digest(password);
+                    let hash = Sha256::digest(password.clone());
                     let password_hash = hex::encode(hash);
-                    db.insert_user(user, password_hash);
+                    db.insert_user(user.clone(), password_hash);
+                    conn.set_authenticated(true, Some("default".to_string()));
+
                     frame = Frame::Simple("OK".to_string());
                 }
             }
@@ -86,15 +97,16 @@ impl Auth {
     }
 
     pub async fn apply(self, db: &Db, conn: &mut Connection) -> crate::Result<()> {
-        let frame = if db.verify_user_passowrd(&self.username, self.password) {
-            Frame::Simple("OK".to_string())
+        let success = db.verify_user_passowrd(&self.username, self.password);
+        if success {
+            conn.set_authenticated(true, Some(self.username.clone()));
+            conn.write_frame(&Frame::Simple("OK".to_string())).await?;
         } else {
-            Frame::Error(
+            conn.write_frame(&Frame::Error(
                 "WRONGPASS invalid username-password pair or user is disabled.".to_string(),
-            )
-        };
-
-        conn.write_frame(&frame).await?;
+            ))
+            .await?;
+        }
         Ok(())
     }
 }

@@ -81,10 +81,14 @@ impl Listener {
             let permit = self.limit_connection.clone().acquire_owned().await.unwrap();
             let socket = self.accept().await?;
 
+            let mut connection = Connection::new(socket);
+            if self.store.db.get_user_password_hash("default").is_some() {
+                connection.set_authenticated(false, None);
+            }
             let mut handler = Handler {
                 db: self.store.db.clone(),
                 config: self.config.clone(),
-                connection: Connection::new(socket),
+                connection,
                 shutdown: Shutdown::new(self.notify_shutdown.subscribe()),
                 _shutdown_complete: self.shutdown_complete_tx.clone(),
                 replica_state: self.replica_state.clone(),

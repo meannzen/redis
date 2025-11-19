@@ -174,47 +174,61 @@ impl Command {
         shutdown: &mut Shutdown,
     ) -> crate::Result<()> {
         use Command::*;
+
         match self {
-            Ping(cmd) => cmd.apply(conn).await,
-            Echo(cmd) => cmd.apply(conn).await,
-            Get(cmd) => cmd.apply(db, conn, transaction_state).await,
-            Set(cmd) => cmd.apply(db, conn, transaction_state).await,
-            Config(cmd) => cmd.apply(config, conn).await,
-            Keys(cmd) => cmd.apply(db, conn).await,
-            Info(cmd) => cmd.apply(config, conn).await,
-            ReplConf(cmd) => cmd.apply(conn, replica_state).await,
-            PSync(cmd) => cmd.apply(conn, replica_state).await,
-            Wait(cmd) => cmd.apply(conn, replica_state).await,
-            Type(cmd) => cmd.apply(db, conn).await,
-            XAdd(cmd) => cmd.apply(db, conn).await,
-            XRange(cmd) => cmd.apply(db, conn).await,
-            XRead(cmd) => cmd.apply(db, conn).await,
-            Ince(cmd) => cmd.apply(db, conn, transaction_state).await,
-            Muiti(cmd) => cmd.apply(transaction_state, conn).await,
-            Exec(cmd) => cmd.apply(db, transaction_state, conn).await,
-            Discard(cmd) => cmd.apply(conn, transaction_state).await,
-            RPush(cmd) => cmd.apply(db, conn).await,
-            LRange(cmd) => cmd.apply(db, conn).await,
-            LPush(cmd) => cmd.apply(db, conn).await,
-            LLen(cmd) => cmd.apply(db, conn).await,
-            LPop(cmd) => cmd.apply(db, conn).await,
-            BLPop(cmd) => cmd.apply(db, conn).await,
-            Subscribe(cmd) => cmd.apply(db, conn, shutdown).await,
-            Publish(cmd) => cmd.apply(db, conn).await,
-            Unsubscribe(_) => Err("`Unsubscribe` is unsupported in this context".into()),
-            ZAdd(cmd) => cmd.apply(db, conn).await,
-            ZRank(cmd) => cmd.apply(db, conn).await,
-            ZRange(cmd) => cmd.apply(db, conn).await,
-            ZCard(cmd) => cmd.apply(db, conn).await,
-            ZScore(cmd) => cmd.apply(db, conn).await,
-            ZRem(cmd) => cmd.apply(db, conn).await,
-            GeoAdd(cmd) => cmd.apply(db, conn).await,
-            GeoPos(cmd) => cmd.apply(db, conn).await,
-            GeoDis(cmd) => cmd.apply(db, conn).await,
-            GSearch(cmd) => cmd.apply(db, conn).await,
-            ACL(cmd) => cmd.apply(db, conn).await,
-            Auth(cmd) => cmd.apply(db, conn).await,
-            Unknown(cmd) => cmd.apply(conn).await,
+            Auth(cmd) => {
+                return cmd.apply(db, conn).await;
+            }
+            other => {
+                if !conn.is_authenticated() {
+                    conn.write_frame(&Frame::Error("NOAUTH Authentication required.".to_string()))
+                        .await?;
+                    return Ok(());
+                }
+
+                match other {
+                    Ping(cmd) => cmd.apply(conn).await,
+                    Echo(cmd) => cmd.apply(conn).await,
+                    Get(cmd) => cmd.apply(db, conn, transaction_state).await,
+                    Set(cmd) => cmd.apply(db, conn, transaction_state).await,
+                    Config(cmd) => cmd.apply(config, conn).await,
+                    Keys(cmd) => cmd.apply(db, conn).await,
+                    Info(cmd) => cmd.apply(config, conn).await,
+                    ReplConf(cmd) => cmd.apply(conn, replica_state).await,
+                    PSync(cmd) => cmd.apply(conn, replica_state).await,
+                    Wait(cmd) => cmd.apply(conn, replica_state).await,
+                    Type(cmd) => cmd.apply(db, conn).await,
+                    XAdd(cmd) => cmd.apply(db, conn).await,
+                    XRange(cmd) => cmd.apply(db, conn).await,
+                    XRead(cmd) => cmd.apply(db, conn).await,
+                    Ince(cmd) => cmd.apply(db, conn, transaction_state).await,
+                    Muiti(cmd) => cmd.apply(transaction_state, conn).await,
+                    Exec(cmd) => cmd.apply(db, transaction_state, conn).await,
+                    Discard(cmd) => cmd.apply(conn, transaction_state).await,
+                    RPush(cmd) => cmd.apply(db, conn).await,
+                    LRange(cmd) => cmd.apply(db, conn).await,
+                    LPush(cmd) => cmd.apply(db, conn).await,
+                    LLen(cmd) => cmd.apply(db, conn).await,
+                    LPop(cmd) => cmd.apply(db, conn).await,
+                    BLPop(cmd) => cmd.apply(db, conn).await,
+                    Subscribe(cmd) => cmd.apply(db, conn, shutdown).await,
+                    Publish(cmd) => cmd.apply(db, conn).await,
+                    Unsubscribe(_) => Err("`Unsubscribe` is unsupported in this context".into()),
+                    ZAdd(cmd) => cmd.apply(db, conn).await,
+                    ZRank(cmd) => cmd.apply(db, conn).await,
+                    ZRange(cmd) => cmd.apply(db, conn).await,
+                    ZCard(cmd) => cmd.apply(db, conn).await,
+                    ZScore(cmd) => cmd.apply(db, conn).await,
+                    ZRem(cmd) => cmd.apply(db, conn).await,
+                    GeoAdd(cmd) => cmd.apply(db, conn).await,
+                    GeoPos(cmd) => cmd.apply(db, conn).await,
+                    GeoDis(cmd) => cmd.apply(db, conn).await,
+                    GSearch(cmd) => cmd.apply(db, conn).await,
+                    ACL(cmd) => cmd.apply(db, conn).await,
+                    Unknown(cmd) => cmd.apply(conn).await,
+                    _ => Ok(()),
+                }
+            }
         }
     }
 

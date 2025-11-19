@@ -15,6 +15,8 @@ pub struct Connection {
     stream: BufWriter<TcpStream>,
     buffer: BytesMut,
     len: usize,
+    authenticated: bool,
+    username: Option<String>,
 }
 
 impl Connection {
@@ -23,8 +25,23 @@ impl Connection {
             stream: BufWriter::new(stream),
             buffer: BytesMut::with_capacity(4 * 1024),
             len: 0,
+            authenticated: true,
+            username: Some("default".to_string()),
         }
     }
+    pub fn set_authenticated(&mut self, authenticated: bool, username: Option<String>) {
+        self.authenticated = authenticated;
+        self.username = username;
+    }
+
+    pub fn is_authenticated(&self) -> bool {
+        self.authenticated
+    }
+
+    pub fn username(&self) -> Option<String> {
+        self.username.clone()
+    }
+
     pub async fn read_frame(&mut self) -> crate::Result<Option<Frame>> {
         loop {
             if let Some(frame) = self.parse_frame()? {
