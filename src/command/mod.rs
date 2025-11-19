@@ -6,6 +6,7 @@ use crate::server::{ReplicaState, Shutdown, TransactionState};
 use crate::store::Db;
 use crate::{Connection, Frame};
 
+pub mod authentication;
 pub mod config;
 pub mod discard;
 pub mod echo;
@@ -54,6 +55,7 @@ pub use xadd::XAdd;
 pub use xrange::XRange;
 pub use xread::XRead;
 pub mod zadd;
+pub use authentication::ACL;
 pub use geo::{GeoAdd, GeoDist, GeoPos, GeoSearch};
 pub use zadd::{ZAdd, ZCard, ZRange, ZRank, ZRem, ZScore};
 
@@ -96,6 +98,7 @@ pub enum Command {
     GeoPos(GeoPos),
     GeoDis(GeoDist),
     GSearch(GeoSearch),
+    ACL(ACL),
     Unknown(Unknown),
 }
 
@@ -141,6 +144,7 @@ impl Command {
             "geopos" => Command::GeoPos(GeoPos::parse_frame(&mut parse)?),
             "geodist" => Command::GeoDis(GeoDist::parse_frame(&mut parse)?),
             "geosearch" => Command::GSearch(GeoSearch::parse_frame(&mut parse)?),
+            "acl" => Command::ACL(ACL::parse_frame(&mut parse)?),
             "config" => {
                 let sub_command_string = parse.next_string()?.to_lowercase();
                 match &sub_command_string[..] {
@@ -206,6 +210,7 @@ impl Command {
             GeoPos(cmd) => cmd.apply(db, conn).await,
             GeoDis(cmd) => cmd.apply(db, conn).await,
             GSearch(cmd) => cmd.apply(db, conn).await,
+            ACL(cmd) => cmd.apply(conn).await,
             Unknown(cmd) => cmd.apply(conn).await,
         }
     }
@@ -253,6 +258,7 @@ impl Command {
             Command::GeoPos(_) => "geopos",
             Command::GeoDis(_) => "geodist",
             Command::GSearch(_) => "gsearch",
+            Command::ACL(_) => "acl",
             Command::Unknown(_) => "unknown",
         }
     }
