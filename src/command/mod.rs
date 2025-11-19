@@ -210,7 +210,7 @@ impl Command {
             GeoPos(cmd) => cmd.apply(db, conn).await,
             GeoDis(cmd) => cmd.apply(db, conn).await,
             GSearch(cmd) => cmd.apply(db, conn).await,
-            ACL(cmd) => cmd.apply(conn).await,
+            ACL(cmd) => cmd.apply(db, conn).await,
             Unknown(cmd) => cmd.apply(conn).await,
         }
     }

@@ -24,6 +24,8 @@ async-stream = "0.3.6"
 atoi = "2.0.0"
 bytes = "1.10.1"                                     # helps manage buffers
 clap = { version = "4.5.39", features = ["derive"] }
+digest = "0.10.7"
+sha2 = "0.10"
 hex = "0.4.3"
 libc = "0.2.177"
 thiserror = "2.0.12"                                # error handling

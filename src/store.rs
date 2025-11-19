@@ -72,6 +72,7 @@ struct State {
     list: HashMap<String, ListEntry>,
     pub_sub: HashMap<String, broadcast::Sender<Bytes>>,
     z_set: HashMap<String, ZSet>,
+    users: HashMap<String, String>,
     shutdown: bool,
 }
 
@@ -113,6 +114,7 @@ impl Db {
                 list: HashMap::new(),
                 pub_sub: HashMap::new(),
                 z_set: HashMap::new(),
+                users: HashMap::new(),
                 shutdown: false,
             }),
 
@@ -486,6 +488,22 @@ impl Db {
         }
 
         results
+    }
+
+    pub fn insert_user(&self, name: String, password_hash: String) -> bool {
+        let mut state = self.shared.state.lock().unwrap();
+
+        if state.users.contains_key(&name) {
+            return false;
+        }
+
+        state.users.insert(name, password_hash);
+        true
+    }
+
+    pub fn get_user_password_hash(&self, name: &str) -> Option<String> {
+        let state = self.shared.state.lock().unwrap();
+        state.users.get(name).cloned()
     }
 
     pub fn set(&self, key: String, value: Bytes, expire: Option<Duration>) {
