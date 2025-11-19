@@ -25,6 +25,8 @@ impl ACL {
             Frame::Array(vec![
                 Frame::Bulk(Bytes::from_static(b"flags")),
                 Frame::Array(vec![Frame::Bulk(Bytes::from_static(b"nopass"))]),
+                Frame::Bulk(Bytes::from_static(b"passwords")),
+                Frame::Array(vec![]),
             ])
         } else {
             Frame::Error(format!("Unknown command {}", command_str))
