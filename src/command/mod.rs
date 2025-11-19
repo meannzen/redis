@@ -54,7 +54,7 @@ pub use xadd::XAdd;
 pub use xrange::XRange;
 pub use xread::XRead;
 pub mod zadd;
-pub use geo::GeoAdd;
+pub use geo::{GeoAdd, GeoPos};
 pub use zadd::{ZAdd, ZCard, ZRange, ZRank, ZRem, ZScore};
 
 #[derive(Debug)]
@@ -93,6 +93,7 @@ pub enum Command {
     ZScore(ZScore),
     ZRem(ZRem),
     GeoAdd(GeoAdd),
+    GeoPos(GeoPos),
     Unknown(Unknown),
 }
 
@@ -135,6 +136,7 @@ impl Command {
             "zscore" => Command::ZScore(ZScore::parse_frame(&mut parse)?),
             "zrem" => Command::ZRem(ZRem::parse_frame(&mut parse)?),
             "geoadd" => Command::GeoAdd(GeoAdd::parse_frame(&mut parse)?),
+            "geopos" => Command::GeoPos(GeoPos::parse_frame(&mut parse)?),
             "config" => {
                 let sub_command_string = parse.next_string()?.to_lowercase();
                 match &sub_command_string[..] {
@@ -197,6 +199,7 @@ impl Command {
             ZScore(cmd) => cmd.apply(db, conn).await,
             ZRem(cmd) => cmd.apply(db, conn).await,
             GeoAdd(cmd) => cmd.apply(db, conn).await,
+            GeoPos(cmd) => cmd.apply(db, conn).await,
             Unknown(cmd) => cmd.apply(conn).await,
         }
     }
@@ -241,6 +244,7 @@ impl Command {
             Command::ZScore(_) => "zscore",
             Command::ZRem(_) => "zrem",
             Command::GeoAdd(_) => "geoadd",
+            Command::GeoPos(_) => "geopos",
             Command::Unknown(_) => "unknown",
         }
     }

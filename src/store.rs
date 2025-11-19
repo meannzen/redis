@@ -440,6 +440,30 @@ impl Db {
         }
     }
 
+    pub fn gpos(&self, key: String, members: Vec<Bytes>) -> Vec<Option<f64>> {
+        let state = self.shared.state.lock().unwrap();
+        let z_set = state.z_set.get(&key);
+
+        if let Some(zset) = z_set {
+            members
+                .into_iter()
+                .map(|member| {
+                    zset.iter().find_map(
+                        |((OrdF64(score), m), &())| {
+                            if m == &member {
+                                Some(*score)
+                            } else {
+                                None
+                            }
+                        },
+                    )
+                })
+                .collect()
+        } else {
+            vec![None; members.len()]
+        }
+    }
+
     pub fn set(&self, key: String, value: Bytes, expire: Option<Duration>) {
         let mut state = self.shared.state.lock().unwrap();
         let mut notify = false;

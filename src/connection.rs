@@ -168,6 +168,36 @@ impl Connection {
         Ok(())
     }
 
+    pub async fn write_geopos(&mut self, positions: Vec<Option<(f64, f64)>>) -> io::Result<()> {
+        self.stream.write_u8(b'*').await?;
+        self.write_decimal(positions.len() as u64).await?;
+
+        for pos in positions {
+            match pos {
+                Some((lon, lat)) => {
+                    self.stream.write_all(b"*2\r\n").await?;
+
+                    let lon_str = lon.to_string();
+                    self.stream.write_u8(b'$').await?;
+                    self.write_decimal(lon_str.len() as u64).await?;
+                    self.stream.write_all(lon_str.as_bytes()).await?;
+                    self.stream.write_all(b"\r\n").await?;
+
+                    let lat_str = lat.to_string();
+                    self.stream.write_u8(b'$').await?;
+                    self.write_decimal(lat_str.len() as u64).await?;
+                    self.stream.write_all(lat_str.as_bytes()).await?;
+                    self.stream.write_all(b"\r\n").await?;
+                }
+                None => {
+                    self.stream.write_all(b"*-1\r\n").await?;
+                }
+            }
+        }
+
+        self.stream.flush().await
+    }
+
     pub async fn write_value(&mut self, frame: &Frame) -> io::Result<()> {
         match frame {
             Frame::Simple(val) => {

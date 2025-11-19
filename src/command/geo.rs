@@ -2,7 +2,7 @@ use bytes::Bytes;
 
 use crate::{
     frame::Frame,
-    geometry::{encode, validate_geo_coordinates, Coordinates},
+    geometry::{decode, encode, validate_geo_coordinates, Coordinates},
     parse::Parse,
     store::Db,
     Connection,
@@ -13,6 +13,12 @@ pub struct GeoAdd {
     key: String,
     coordinate: Coordinates,
     member: Bytes,
+}
+
+#[derive(Debug)]
+pub struct GeoPos {
+    key: String,
+    members: Vec<Bytes>,
 }
 
 impl GeoAdd {
@@ -46,6 +52,36 @@ impl GeoAdd {
         );
 
         conn.write_frame(&frame).await?;
+        Ok(())
+    }
+}
+
+impl GeoPos {
+    pub fn parse_frame(parse: &mut Parse) -> crate::Result<GeoPos> {
+        let key = parse.next_string()?;
+        let mut members = vec![];
+
+        while let Ok(bytes) = parse.next_bytes() {
+            members.push(bytes);
+        }
+
+        Ok(GeoPos { key, members })
+    }
+
+    pub async fn apply(self, db: &Db, conn: &mut Connection) -> crate::Result<()> {
+        let values = db.gpos(self.key, self.members);
+
+        let mut positions = vec![];
+        for value in values {
+            if let Some(score) = value {
+                let coord = decode(score as u64);
+                positions.push(Some((coord.longitude, coord.latitude)));
+            } else {
+                positions.push(None);
+            }
+        }
+
+        conn.write_geopos(positions).await?;
         Ok(())
     }
 }
