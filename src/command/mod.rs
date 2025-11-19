@@ -55,7 +55,7 @@ pub use xadd::XAdd;
 pub use xrange::XRange;
 pub use xread::XRead;
 pub mod zadd;
-pub use authentication::ACL;
+pub use authentication::{Auth, ACL};
 pub use geo::{GeoAdd, GeoDist, GeoPos, GeoSearch};
 pub use zadd::{ZAdd, ZCard, ZRange, ZRank, ZRem, ZScore};
 
@@ -99,6 +99,7 @@ pub enum Command {
     GeoDis(GeoDist),
     GSearch(GeoSearch),
     ACL(ACL),
+    Auth(Auth),
     Unknown(Unknown),
 }
 
@@ -145,6 +146,7 @@ impl Command {
             "geodist" => Command::GeoDis(GeoDist::parse_frame(&mut parse)?),
             "geosearch" => Command::GSearch(GeoSearch::parse_frame(&mut parse)?),
             "acl" => Command::ACL(ACL::parse_frame(&mut parse)?),
+            "auth" => Command::Auth(Auth::parse_frame(&mut parse)?),
             "config" => {
                 let sub_command_string = parse.next_string()?.to_lowercase();
                 match &sub_command_string[..] {
@@ -211,6 +213,7 @@ impl Command {
             GeoDis(cmd) => cmd.apply(db, conn).await,
             GSearch(cmd) => cmd.apply(db, conn).await,
             ACL(cmd) => cmd.apply(db, conn).await,
+            Auth(cmd) => cmd.apply(db, conn).await,
             Unknown(cmd) => cmd.apply(conn).await,
         }
     }
@@ -259,6 +262,7 @@ impl Command {
             Command::GeoDis(_) => "geodist",
             Command::GSearch(_) => "gsearch",
             Command::ACL(_) => "acl",
+            Command::Auth(_) => "auth",
             Command::Unknown(_) => "unknown",
         }
     }

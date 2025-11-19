@@ -2,13 +2,18 @@ use bytes::Bytes;
 use sha2::{Digest, Sha256};
 
 use crate::{parse::Parse, store::Db, Connection, Frame};
-#[allow(dead_code)]
 #[derive(Debug)]
 pub struct ACL {
     command: String,
     user: Option<String>,
     rule: Option<String>,
     password: Option<String>,
+}
+
+#[derive(Debug)]
+pub struct Auth {
+    username: String,
+    password: String,
 }
 
 impl ACL {
@@ -66,6 +71,27 @@ impl ACL {
             frame
         } else {
             Frame::Error(format!("Unknown command {}", command_str))
+        };
+
+        conn.write_frame(&frame).await?;
+        Ok(())
+    }
+}
+
+impl Auth {
+    pub fn parse_frame(parse: &mut Parse) -> crate::Result<Auth> {
+        let username = parse.next_string()?;
+        let password = parse.next_string()?;
+        Ok(Auth { username, password })
+    }
+
+    pub async fn apply(self, db: &Db, conn: &mut Connection) -> crate::Result<()> {
+        let frame = if db.verify_user_passowrd(&self.username, self.password) {
+            Frame::Simple("OK".to_string())
+        } else {
+            Frame::Error(
+                "WRONGPASS invalid username-password pair or user is disabled.".to_string(),
+            )
         };
 
         conn.write_frame(&frame).await?;

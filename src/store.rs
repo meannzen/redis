@@ -4,6 +4,7 @@ use std::{
 };
 
 use bytes::Bytes;
+use sha2::{Digest, Sha256};
 use tokio::{
     sync::{broadcast, Notify},
     time::{self, Duration, Instant},
@@ -504,6 +505,19 @@ impl Db {
     pub fn get_user_password_hash(&self, name: &str) -> Option<String> {
         let state = self.shared.state.lock().unwrap();
         state.users.get(name).cloned()
+    }
+
+    pub fn verify_user_passowrd(&self, username: &str, password: String) -> bool {
+        let state = self.shared.state.lock().unwrap();
+        if let Some(user_password) = state.users.get(username) {
+            let hash = Sha256::digest(password);
+            let password_hash = hex::encode(hash);
+            if *user_password == password_hash {
+                return true;
+            }
+        }
+
+        false
     }
 
     pub fn set(&self, key: String, value: Bytes, expire: Option<Duration>) {
