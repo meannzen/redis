@@ -21,6 +21,13 @@ pub struct GeoPos {
     members: Vec<Bytes>,
 }
 
+#[derive(Debug)]
+pub struct GeoDist {
+    key: String,
+    from: Bytes,
+    to: Bytes,
+}
+
 impl GeoAdd {
     pub fn parse_frame(parse: &mut Parse) -> crate::Result<GeoAdd> {
         let key = parse.next_string()?;
@@ -82,6 +89,32 @@ impl GeoPos {
         }
 
         conn.write_geopos(positions).await?;
+        Ok(())
+    }
+}
+
+impl GeoDist {
+    pub fn parse_frame(parse: &mut Parse) -> crate::Result<GeoDist> {
+        let key = parse.next_string()?;
+        let from = parse.next_bytes()?;
+        let to = parse.next_bytes()?;
+
+        Ok(GeoDist { key, from, to })
+    }
+
+    pub async fn apply(self, db: &Db, conn: &mut Connection) -> crate::Result<()> {
+        let from_coordinate = db.zscore(self.key.clone(), self.from);
+        let to_coordinate = db.zscore(self.key, self.to);
+
+        let mut frame = Frame::Null;
+        if let (Some(from_raw), Some(to_raw)) = (from_coordinate, to_coordinate) {
+            let from = decode(from_raw as u64);
+            let to = decode(to_raw as u64);
+            let distance = from.haversine_distance(&to);
+            frame = Frame::Bulk(Bytes::from(distance.to_string()));
+        }
+
+        conn.write_frame(&frame).await?;
         Ok(())
     }
 }

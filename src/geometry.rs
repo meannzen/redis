@@ -6,40 +6,42 @@ const MAX_LONGITUDE: f64 = 180.0;
 
 const LATITUDE_RANGE: f64 = MAX_LATITUDE - MIN_LATITUDE;
 const LONGITUDE_RANGE: f64 = MAX_LONGITUDE - MIN_LONGITUDE;
+
+const EARTH_RADIUS_METERS: f64 = 6372797.560856;
 // reference to source
 /// https://github.com/codecrafters-io/redis-geocoding-algorithm/blob/main/rust/decode.rs
 /// https://rosettacode.org/wiki/Haversine_formula#Rust
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct Coordinates {
     pub latitude: f64,
     pub longitude: f64,
 }
 
 impl Coordinates {
-    pub fn new(latitude: f64, longitude: f64) -> Coordinates {
-        Coordinates {
+    pub fn new(latitude: f64, longitude: f64) -> Self {
+        Self {
             latitude,
             longitude,
         }
     }
 
-    pub fn haversine(&self, other: Coordinates) -> f64 {
-        haversine(self.clone(), other)
+    pub fn haversine_distance(&self, other: &Self) -> f64 {
+        haversine(*self, *other)
     }
 }
 
-fn haversine(origin: Coordinates, destination: Coordinates) -> f64 {
-    const R: f64 = 6372.8;
-
+pub fn haversine(origin: Coordinates, destination: Coordinates) -> f64 {
     let lat1 = origin.latitude.to_radians();
     let lat2 = destination.latitude.to_radians();
     let d_lat = lat2 - lat1;
     let d_lon = (destination.longitude - origin.longitude).to_radians();
 
-    let a = (d_lat / 2.0).sin().powi(2) + (d_lon / 2.0).sin().powi(2) * lat1.cos() * lat2.cos();
+    let a = (d_lat / 2.0).sin().powi(2) + lat1.cos() * lat2.cos() * (d_lon / 2.0).sin().powi(2);
+
     let c = 2.0 * a.sqrt().asin();
-    R * c
+
+    EARTH_RADIUS_METERS * c
 }
 
 fn compact_int64_to_int32(v: u64) -> u32 {
