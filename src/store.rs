@@ -9,7 +9,10 @@ use tokio::{
     time::{self, Duration, Instant},
 };
 
-use crate::stream::{Fields, Stream, StreamId};
+use crate::{
+    geometry::{decode, Coordinates},
+    stream::{Fields, Stream, StreamId},
+};
 use std::str::FromStr;
 
 use std::cmp::Ordering;
@@ -462,6 +465,27 @@ impl Db {
         } else {
             vec![None; members.len()]
         }
+    }
+
+    pub fn gsearch(&self, key: String, center: Coordinates, radius_meters: f64) -> Vec<Bytes> {
+        let state = self.shared.state.lock().unwrap();
+
+        let Some(zset) = state.z_set.get(&key) else {
+            return vec![];
+        };
+
+        let mut results = Vec::with_capacity(zset.len().min(64));
+
+        for (OrdF64(score), member) in zset.keys() {
+            let geohash_u64 = *score as u64;
+            let coord = decode(geohash_u64);
+
+            if coord.haversine_distance(&center) <= radius_meters + 1e-6 {
+                results.push(member.clone());
+            }
+        }
+
+        results
     }
 
     pub fn set(&self, key: String, value: Bytes, expire: Option<Duration>) {

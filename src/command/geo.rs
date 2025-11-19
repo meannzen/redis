@@ -28,6 +28,15 @@ pub struct GeoDist {
     to: Bytes,
 }
 
+#[derive(Debug)]
+pub struct GeoSearch {
+    key: String,
+    center_lon: f64,
+    center_lat: f64,
+    radius: f64,
+    unit: String,
+}
+
 impl GeoAdd {
     pub fn parse_frame(parse: &mut Parse) -> crate::Result<GeoAdd> {
         let key = parse.next_string()?;
@@ -115,6 +124,54 @@ impl GeoDist {
         }
 
         conn.write_frame(&frame).await?;
+        Ok(())
+    }
+}
+
+impl GeoSearch {
+    pub fn parse_frame(parse: &mut Parse) -> crate::Result<GeoSearch> {
+        let key = parse.next_string()?;
+
+        let _ = parse.next_string()?;
+        let center_lon = parse.next_string()?.parse()?;
+        let center_lat = parse.next_string()?.parse()?;
+
+        let _ = parse.next_string()?;
+        let radius = parse.next_string()?.parse()?;
+        let unit = parse.next_string()?.to_lowercase();
+
+        Ok(GeoSearch {
+            key,
+            center_lon,
+            center_lat,
+            radius,
+            unit,
+        })
+    }
+
+    pub async fn apply(self, db: &Db, conn: &mut Connection) -> crate::Result<()> {
+        let radius_meters = match self.unit.as_str() {
+            "m" => self.radius,
+            "km" => self.radius * 1_000.0,
+            "mi" => self.radius * 1609.344,
+            "ft" => self.radius * 0.3048,
+            _ => {
+                conn.write_frame(&Frame::Error("ERR unsupported unit".into()))
+                    .await?;
+                return Ok(());
+            }
+        };
+
+        let center = Coordinates::new(self.center_lat, self.center_lon);
+
+        let mut results = Frame::array();
+        let valuse = db.gsearch(self.key, center, radius_meters);
+
+        for bytes in valuse {
+            results.push_bulk(bytes);
+        }
+
+        conn.write_frame(&results).await?;
         Ok(())
     }
 }
